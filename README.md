@@ -2,7 +2,7 @@
 
 *Formerly Ping.*
 
-Your Claude Code agents, one glance away. Notchkeeper lives in your MacBook's notch and shows what every agent is doing, which one is stuck waiting on you, and lets you answer without switching windows.
+Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch and shows what every Claude Code, Codex and Gemini CLI agent is doing, which one is stuck waiting on you, and lets you answer without switching windows. Built for people juggling many things: nothing waiting on you gets lost.
 
 **[thevahidal.github.io/notchkeeper](https://thevahidal.github.io/notchkeeper/)** · [Download](https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg) · `brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper`
 
@@ -25,6 +25,9 @@ Your Claude Code agents, one glance away. Notchkeeper lives in your MacBook's no
 - **Start agents from the notch.** Click **+** (or menu bar → New Background Agent…), pick a folder, type what it should do. Notchkeeper runs `claude --bg`, optionally in its **own git worktree** so parallel agents don't collide. The agent shows up like any other, tagged **bg**; click it to attach in a terminal.
 - **Queue a follow-up.** While an agent works, type your next message into its row. Notchkeeper sends it when the turn ends, unless the turn ends with a question for you.
 - **Tell Claude instead of just saying no.** On an approval card, **Tell Claude…** denies the call with your message ("use pnpm, not npm"), so the agent changes course instead of guessing.
+- **Never lose track.** Agents waiting on you stay in the notch for a day, even if they go quiet, and come back after a restart or update. When you open Notchkeeper, a card lists what's still waiting.
+- **Snooze.** Can't deal with it now? Hover a waiting agent and pick 15 minutes, 1 hour or tomorrow at 9. It goes quiet and comes back with a ping.
+- **Gentle nudges.** If an agent has waited 10 minutes, Notchkeeper pings again every 10 minutes, or every 3 if you've stepped away.
 - **Plans.** When Claude finishes a plan, Notchkeeper shows it, formatted, and takes you to the session to approve it.
 - **Questions.** When a turn ends with a question, the row turns orange and shows the question.
 - **Sounds.** A ping when an agent needs you, a soft pop when one finishes, and a reminder every few minutes if you've stepped away while one is stuck. Silent for the tab you're already looking at.
@@ -37,12 +40,27 @@ Your Claude Code agents, one glance away. Notchkeeper lives in your MacBook's no
 
 ### Where each feature works
 
-| | Status | Approve | Questions | Jump | Reply |
-|---|---|---|---|---|---|
-| Claude Code CLI in Ghostty, iTerm2 or Terminal | ✅ | ✅ | ✅ | ✅ exact tab | ✅ |
-| Claude Code CLI in Warp, WezTerm, VS Code | ✅ | ✅ | ✅ | brings the app forward | — |
-| Claude Code CLI in other terminals | ✅ | ✅ | ✅ | — | — |
-| Claude desktop app | ✅ | ✅ | ✅ | brings the app forward | — |
+**Agents**
+
+| | Status | Approve | Questions | Plans |
+|---|---|---|---|---|
+| Claude Code (CLI and desktop app) | ✅ | ✅ | ✅ | ✅ |
+| Codex CLI | ✅ | ✅ (no "for session") | — | — |
+| Gemini CLI | ✅ | — (Gemini's hooks can't answer approvals) | — | — |
+
+Cursor's CLI doesn't run hooks reliably yet, so it isn't supported.
+
+**Terminals** (jump to the exact pane, and reply)
+
+| | Jump | Reply |
+|---|---|---|
+| Ghostty, iTerm2, Terminal | ✅ exact tab | ✅ |
+| tmux (inside any terminal) | ✅ exact pane | ✅ |
+| WezTerm | ✅ exact pane | ✅ |
+| kitty (with `allow_remote_control` and `listen_on`) | ✅ exact window | ✅ |
+| Warp, Alacritty, VS Code, Cursor, others | brings the app forward | — |
+| Claude desktop app | brings the app forward | — |
+| Background agents (`claude --bg`) | opens `claude attach` | — |
 
 In the desktop app, Claude's own prompt shows at the same time as Notchkeeper's card. Answer either one; Claude cancels the other.
 
@@ -74,32 +92,32 @@ open .build/Notchkeeper.app
 
 On first launch Notchkeeper asks, in the notch, whether to connect to Claude Code. Coming from Ping? Notchkeeper offers to swap Ping's hooks for its own and removes the old `~/.ping` hooks. **Connect** copies the two hook scripts to `~/.notchkeeper/hooks/` and adds them to `~/.claude/settings.json`. It keeps a backup of your settings next to the original and leaves your other settings and hooks as they are.
 
-Notchkeeper has a menu bar icon (〰) for connecting or disconnecting, launch at login, and quit. The first time you click a row or reply, macOS asks whether Notchkeeper may control that terminal (Ghostty, iTerm2 or Terminal).
+Notchkeeper has a menu bar icon (〰) for connecting or disconnecting agents, launch at login, and quit. **Codex** and **Gemini CLI** show up under Agents when they're installed; click one to connect it. Codex runs new hooks only after you approve them, so open Codex and approve Notchkeeper's in `/hooks`. The first time you click a row or reply, macOS asks whether Notchkeeper may control that terminal (Ghostty, iTerm2 or Terminal).
 
-From a script: `Notchkeeper.app/Contents/MacOS/Notchkeeper --connect` or `--disconnect` edits the hooks and exits.
+From a script: `Notchkeeper.app/Contents/MacOS/Notchkeeper --connect [claude|codex|gemini]` or `--disconnect [agent]` edits the hooks and exits.
 
 ### Uninstall
 
 With Homebrew, `brew uninstall --zap --cask notchkeeper` disconnects Notchkeeper from Claude Code, quits it and deletes `~/.notchkeeper`.
 
 Otherwise:
-1. Menu bar icon → **Disconnect**. This removes only Notchkeeper's entries from `~/.claude/settings.json`.
+1. Menu bar icon → uncheck each agent under **Agents**. This removes only Notchkeeper's entries from that agent's settings.
 2. **Quit Notchkeeper**, then delete `Notchkeeper.app` and `~/.notchkeeper`.
 
 ## How it works
 
 ```
-Claude Code (CLI or desktop)
+Claude Code / Codex / Gemini CLI
    │  runs a hook on each event: tool use, stop, notification, subagent, …
    ▼
 ~/.notchkeeper/hooks/notchkeeper-hook.sh   ──►  ~/.notchkeeper/notchkeeper.sock  ──►  Notchkeeper (notch)
 ~/.notchkeeper/hooks/notchkeeper-approve.sh ◄── "allow" / "deny" ◄──┘   (only for permission requests)
 ```
 
-1. Claude Code reads hooks from `~/.claude/settings.json`. The CLI and the desktop app share this file.
-2. `notchkeeper-hook.sh` forwards each event's JSON to Notchkeeper over a local Unix socket and exits right away. It adds the terminal (tty) Claude runs in so Notchkeeper can jump to it.
+1. Claude Code reads hooks from `~/.claude/settings.json` (the CLI and the desktop app share it), Codex from `~/.codex/hooks.json`, Gemini CLI from `~/.gemini/settings.json`.
+2. `notchkeeper-hook.sh` forwards each event's JSON to Notchkeeper over a local Unix socket and exits right away. It adds where the agent runs (tty, terminal app, tmux / WezTerm / kitty pane) so Notchkeeper can jump to it.
 3. `notchkeeper-approve.sh` runs only when Claude needs permission. It waits up to 30 seconds for Notchkeeper to answer `allow`, `deny` or `allow-session` and prints the matching decision for Claude.
-4. Notchkeeper keeps everything in memory. For session titles, questions and the model name it reads the session's transcript in `~/.claude/projects/`.
+4. Notchkeeper keeps sessions in memory and in `~/.notchkeeper/sessions.json`, so they survive a restart. For Claude's session titles, questions and model it reads the transcript in `~/.claude/projects/`.
 
 ## Security
 
@@ -107,7 +125,7 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 
 **What data goes where**
 - Hook events contain your prompts, the commands Claude runs and the contents of files it edits. They go only to Notchkeeper, over a Unix socket in `~/.notchkeeper`. Nothing is sent over the network: Notchkeeper opens no TCP or UDP connections, has no telemetry and needs no account.
-- Notchkeeper writes only the socket, its hook scripts in `~/.notchkeeper/hooks`, the approval log `~/.notchkeeper/approvals.log` (`600`, rotated at 1 MB), and, when you connect or disconnect, `~/.claude/settings.json` plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
+- Notchkeeper writes only the socket, its hook scripts in `~/.notchkeeper/hooks`, the approval log `~/.notchkeeper/approvals.log` (`600`, rotated at 1 MB), the saved session list `~/.notchkeeper/sessions.json` (`600`; it holds titles and recent activity), and, when you connect or disconnect an agent, that agent's settings file (`~/.claude/settings.json`, `~/.codex/hooks.json` or `~/.gemini/settings.json`) plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
 
 **Approvals**
 - Notchkeeper can only answer a permission request that Claude sends it. It can't invent one or widen what Claude asked for.
@@ -121,6 +139,7 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 - Hooks run from a private copy in `~/.notchkeeper/hooks` (`700`), not from inside the app or a git checkout. Notchkeeper refreshes that copy when it starts, so an update to the app updates the scripts.
 
 **Input handling**
+- Pane ids from the hook (tmux, WezTerm, kitty) must match their exact shape before Notchkeeper uses them, and `tmux`, `wezterm` and `kitten` run with arguments, never through a shell. Replies are sent as literal text.
 - Starting an agent runs the `claude` executable directly with your prompt as an argument, never through a shell, so nothing in the prompt can run as a command.
 - Event fields are treated as untrusted. The terminal id must look like `ttys012` before it reaches an AppleScript. Notchkeeper reads the git branch straight from `.git/HEAD`; it never runs git. The transcript path must be a `.jsonl` file under `~/.claude/projects/`. Messages over 1 MB are dropped.
 - A reply is typed into a terminal only if `claude` is the program currently running there. If Claude has exited, the tab is a plain shell and pressing Enter would run your text as a command, so Notchkeeper jumps to the tab instead.

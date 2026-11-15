@@ -20,7 +20,9 @@ func demoStore() -> SessionStore {
         session("4", "infra", "Migrate CI to arm runners", .working, "Bash: terraform plan -out ci.tfplan", ago: 75,
                 branch: "arm-ci"),
     ]
-    store.sessions[3].background = true
+    store.sessions[3].agent = "codex"
+    store.sessions[3].model = "gpt-5.5-codex"
+    store.sessions[1].snoozedUntil = Calendar.current.date(bySettingHour: 14, minute: 30, second: 0, of: now)
     store.queued["3"] = ["Then update the README screenshots"]
     store.sessions[2].subagents = [Subagent(id: "a", type: "Explore", description: "Find hover handlers", detail: "Grep: onHover")]
     store.sounds = true

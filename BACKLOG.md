@@ -27,6 +27,9 @@ Notchkeeper (formerly Ping).
 - **Background agents** (v0.3.0): + in the notch runs `claude --bg -n <name> [-w <name>] <prompt>`; background sessions (from `claude agents --json`) are tagged and open with `claude attach` (Ghostty, else Terminal). Tested: launch and detection with a real agent.
 - **Follow-up queue**: messages typed while an agent works go out when the turn ends without a question. Not exercised live end to end.
 - **Tell Claude**: deny with a message (`deny-message "<json string>"` → hook `decision.message`). Hook output tested; Claude reading the message not tested live.
+- **Codex and Gemini CLI.** Menu bar → Agents connects each (`~/.codex/hooks.json`, `~/.gemini/settings.json`). Codex approvals work through the same hook; Gemini is status only (its hooks can't answer approvals). Installer tested in a scratch home; event mapping tested with sample events. Not tested against the live CLIs (Codex needs its interactive /hooks approval; Gemini isn't signed in here).
+- **tmux, WezTerm, kitty.** The hook reports the pane; jump and reply go to the exact pane. tmux tested end to end with a stand-in agent; WezTerm and kitty untested (not installed). Unknown terminals come forward by the bundle id in the hook's environment.
+- **Never lose track.** Waiting agents kept 24h, sessions saved to `~/.notchkeeper/sessions.json` and restored with a catch-up card, snooze (15m / 1h / tomorrow 9), nudges every 10 min (3 when away). Tested in a scratch home.
 - **App icon** (`tools/icon.sh`) and **screenshots** rendered from the real views (`tools/screenshots.sh`).
 
 ## Open
@@ -34,7 +37,6 @@ Notchkeeper (formerly Ping).
 - **Verify on a real display.** iTerm2 and Terminal.app scripts are untested end to end (Terminal's automation prompt was pending); no-notch bar only seen in renders.
 - **Launch at Login** for the unsigned app: still unverified.
 - **brew uninstall hang.** In one test `brew uninstall` hung on the cask's `quit:` step with two copies of the app running. Check with one copy.
-- **tmux.** Jump and reply via `tmux send-keys` to the pane.
 - **Clickable options.** AskUserQuestion answers from the notch (needs a reliable send path per terminal).
 
 
@@ -47,4 +49,3 @@ Notchkeeper (formerly Ping).
 - Per-session color so collapsed dots tell sessions apart.
 - Hide while screen sharing (`NSWindow.sharingType`; check it still works with ScreenCaptureKit).
 - Phone handoff for approvals when away.
-- Keep the session list across app restarts.
