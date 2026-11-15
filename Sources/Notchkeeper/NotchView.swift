@@ -160,6 +160,9 @@ struct NotchView: View {
                          help: store.quiet ? "Quiet: the notch lights up only when an agent needs you" : "Quiet mode off") {
                 store.quiet.toggle()
             }
+            HeaderToggle(on: false, symbol: "macwindow", help: "Open Notchkeeper") {
+                (NSApp.delegate as? AppDelegate)?.showSettings()
+            }
         }
         .font(.system(size: 11, weight: .medium))
         .padding(.horizontal, 8)

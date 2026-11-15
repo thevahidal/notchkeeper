@@ -191,7 +191,10 @@ final class SessionStore: ObservableObject {
         let live = sessions.sorted { $0.lastSeen > $1.lastSeen }.map(\.cwd)
         let saved = UserDefaults.standard.stringArray(forKey: "recentFolders") ?? []
         var seen = Set<String>()
-        return (live + saved).filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(8).map { $0 }
+        // Skip worktrees agents made (claude -w puts them in .claude/worktrees); you pick the repo, not one of those.
+        return (live + saved)
+            .filter { !$0.isEmpty && !$0.contains("/.claude/worktrees/") && seen.insert($0).inserted }
+            .prefix(8).map { $0 }
     }
 
     func openNewAgent(in folder: String? = nil) {
