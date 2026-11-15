@@ -1,6 +1,7 @@
 # Backlog
 
 ## Done
+- **Releases.** Tag `v*` → GitHub Actions builds Ping.zip / Ping.dmg; Homebrew tap thevahidal/tap.
 - **Click an agent to jump to it.** Ghostty focuses the exact pane (by tty); desktop brings the Claude app forward.
 - **Answer from the notch.** Ghostty only: pastes the reply into the pane and presses Enter.
 - **Scale to tens of agents.** More than 4 sessions: counts per state when collapsed; the expanded list scrolls.
@@ -10,7 +11,7 @@
 - **Questions.** A turn ending in a question box turns orange and shows the question; AskUserQuestion too.
 
 ## Open
-- **Releases.** GitHub Actions builds Ping.zip / .dmg on each tag; Homebrew tap (`brew install --cask thevahidal/tap/ping`); download button on the site and README. Unsigned for now; add Developer ID signing + notarization later.
+- **Signing.** Releases are unsigned (ad-hoc). Add Developer ID signing + notarization to the release workflow; then submit to the official Homebrew cask repo.
 - **App icon.** Ping.app has no icon yet.
 - **Desktop approvals.** Unverified: does the desktop app wait for the notch card before showing its own prompt? Test with a desktop session in Ask mode.
 - **Other terminals.** Terminal.app and iTerm2 adapters for jump and reply (both expose tty to AppleScript); tmux via `send-keys`.

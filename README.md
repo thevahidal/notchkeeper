@@ -28,7 +28,21 @@ Your Claude Code agents, one glance away. Ping lives in your MacBook's notch and
 
 Requirements: macOS 14+ on a Mac with a notch (Apple silicon), and Claude Code (CLI or desktop app).
 
-Download and Homebrew installs are coming with the first release. For now, build from source with the Xcode Command Line Tools (`xcode-select --install`):
+**Homebrew**
+
+```bash
+brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping
+```
+
+Homebrew asks you to trust casks from third-party taps before it loads them; that's the `brew trust` part.
+
+**Download**
+
+[Download Ping.dmg](https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg), open it and drag Ping to Applications.
+
+**First open:** Ping isn't signed with an Apple Developer ID yet, so macOS says it can't verify the developer. Go to System Settings → Privacy & Security and click **Open Anyway** next to Ping. You only need to do this once.
+
+**From source** (needs the Xcode Command Line Tools: `xcode-select --install`)
 
 ```bash
 git clone https://github.com/thevahidal/ping.git && cd ping
@@ -44,6 +58,9 @@ From a script: `Ping.app/Contents/MacOS/Ping --connect` or `--disconnect` edits 
 
 ### Uninstall
 
+With Homebrew, `brew uninstall --zap --cask ping` disconnects Ping from Claude Code, quits it and deletes `~/.ping`.
+
+Otherwise:
 1. Menu bar icon → **Disconnect**. This removes only Ping's entries from `~/.claude/settings.json`.
 2. **Quit Ping**, then delete `Ping.app` and `~/.ping`.
 
