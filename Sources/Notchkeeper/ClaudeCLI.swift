@@ -50,18 +50,23 @@ enum ClaudeCLI {
         set { UserDefaults.standard.set(newValue, forKey: "attachInNewTab") }
     }
 
-    // Attaches to the background agent in Ghostty if installed, else Terminal.
-    // Ghostty gets a new tab in its front window when it has one; Terminal always gets a new window.
     static func attach(_ sessionId: String) {
         guard let path else { return }
         let id = String(sessionId.prefix(8))
         guard id.allSatisfy(\.isHexDigit) else { return }
         if let tty = attachedTTY(id), Jump.focus(tty: tty) { return }
+        openTerminal([path, "attach", id])
+    }
+
+    // Runs the command in Ghostty if installed, else Terminal. Callers pass only paths and checked ids, never quotes.
+    // Ghostty gets a new tab in its front window when it has one; Terminal always gets a new window.
+    static func openTerminal(_ args: [String]) {
+        let command = args.map { "'\($0)'" }.joined(separator: " ")
         let ghosttyId = "com.mitchellh.ghostty"
         if attachInNewTab, !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyId).isEmpty {
             let script = """
             tell application id "\(ghosttyId)"
-                set config to {command:"'\(path)' attach \(id)"}
+                set config to {command:"\(command)"}
                 if (count of windows) > 0 then
                     new tab in front window with configuration config
                 else
@@ -72,9 +77,9 @@ enum ClaudeCLI {
             """
             NSAppleScript(source: script)?.executeAndReturnError(nil)
         } else if let ghostty = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyId) {
-            _ = run("/usr/bin/open", ["-na", ghostty.path, "--args", "-e", path, "attach", id], in: nil)
+            _ = run("/usr/bin/open", ["-na", ghostty.path, "--args", "-e"] + args, in: nil)
         } else {
-            let script = "tell application id \"com.apple.Terminal\"\ndo script \"'\(path)' attach \(id)\"\nactivate\nend tell"
+            let script = "tell application id \"com.apple.Terminal\"\ndo script \"\(command)\"\nactivate\nend tell"
             NSAppleScript(source: script)?.executeAndReturnError(nil)
         }
     }

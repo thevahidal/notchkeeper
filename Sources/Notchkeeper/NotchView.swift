@@ -184,7 +184,7 @@ struct NotchView: View {
                             .foregroundStyle(Palette.working[1])
                     }
                     if let agent = session.agent { Tag(text: agent, color: .white.opacity(0.6)) }
-                    if session.background { Tag(text: "bg", color: Palette.plan) }
+                    if session.background || session.tmuxSession != nil { Tag(text: "bg", color: Palette.plan) }
                     if let until = session.snoozedUntil {
                         Tag(text: "zz " + until.formatted(date: .omitted, time: .shortened), color: .white.opacity(0.5))
                     }
@@ -967,7 +967,7 @@ struct FeedbackField: View {
     }
 }
 
-// Starts `claude --bg` in a folder, optionally in its own git worktree, so agents don't trip over each other.
+// Starts `claude --bg` (or another agent in tmux) in a folder, optionally in its own git worktree, so agents don't trip over each other.
 struct NewAgentCard: View {
     @ObservedObject var store: SessionStore
     let notchHeight: CGFloat
@@ -994,6 +994,21 @@ struct NewAgentCard: View {
                 Text("esc cancel").font(.system(size: 11)).foregroundStyle(.white.opacity(0.4))
             }
             HStack(spacing: 8) {
+                if store.agentChoices.count > 1 {
+                    Menu {
+                        ForEach(store.agentChoices, id: \.self) { agent in
+                            Button(agent.title) { store.newAgent?.agent = agent }
+                        }
+                    } label: {
+                        Label(draft.agent.title, systemImage: "person.fill")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
+                    .background(.white.opacity(0.08), in: Capsule())
+                }
                 Menu {
                     ForEach(store.recentFolders, id: \.self) { folder in
                         Button((folder as NSString).abbreviatingWithTildeInPath) { store.openNewAgent(in: folder) }

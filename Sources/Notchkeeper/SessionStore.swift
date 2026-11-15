@@ -18,6 +18,8 @@ struct Session: Identifiable, Codable {
     var branch: String?
     // Started with `claude --bg`: no terminal tab of its own, you attach to it.
     var background = false
+    // Started from the notch in a detached tmux session (agents with no background mode of their own).
+    var tmuxSession: String?
     // Not an agent: something posted with `notchkeeper notify` or `run`. Clicking opens its link, if any.
     var isItem = false
     var url: String?
@@ -117,6 +119,7 @@ struct CatchUp {
 
 struct NewAgent {
     var folder: String
+    var agent = Agent(rawValue: UserDefaults.standard.string(forKey: "newAgentKind") ?? "") ?? .claude
     var prompt = ""
     var worktree: Bool
     var error: String?
@@ -135,6 +138,8 @@ final class SessionStore: ObservableObject {
     @Published var plan: PlanReview?
     @Published var catchUp: CatchUp?
     @Published var newAgent: NewAgent?
+    // Agents the new agent card can start.
+    @Published var agentChoices: [Agent] = [.claude]
     // Follow-ups typed while an agent works, sent in order when its turn ends.
     @Published var queued: [String: [String]] = [:]
     // The approval whose "tell Claude" field is open, and what you've typed.
@@ -142,6 +147,8 @@ final class SessionStore: ObservableObject {
     @Published var feedback = ""
     // Short ids printed by `claude --bg` for agents started here.
     private var launched: Set<String> = []
+    // tmux pane id → session name, for agents started here in tmux.
+    private var launchedPanes: [String: String] = [:]
     private var awaySince: Date?
     @Published var sounds = UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true {
         didSet { UserDefaults.standard.set(sounds, forKey: "sounds") }
@@ -211,6 +218,10 @@ final class SessionStore: ObservableObject {
     func openNewAgent(in folder: String? = nil) {
         let folder = folder ?? recentFolders.first ?? NSHomeDirectory()
         newAgent = NewAgent(folder: folder, worktree: Self.gitBranch(folder) != nil)
+        TmuxAgents.choices { [weak self] choices in
+            self?.agentChoices = choices
+            if let agent = self?.newAgent?.agent, !choices.contains(agent) { self?.newAgent?.agent = .claude }
+        }
     }
 
     func launchAgent() {
@@ -220,17 +231,27 @@ final class SessionStore: ObservableObject {
         draft.busy = true
         draft.error = nil
         newAgent = draft
-        ClaudeCLI.launch(prompt: prompt, in: draft.folder, worktree: draft.worktree && Self.gitBranch(draft.folder) != nil) { [weak self] result in
+        let worktree = draft.worktree && Self.gitBranch(draft.folder) != nil
+        UserDefaults.standard.set(draft.agent.rawValue, forKey: "newAgentKind")
+        let finished = { [weak self] (result: Result<Void, ClaudeCLI.Failure>) in
             guard let self else { return }
             switch result {
-            case .success(let id):
-                self.launched.insert(id)
+            case .success:
                 let saved = UserDefaults.standard.stringArray(forKey: "recentFolders") ?? []
                 UserDefaults.standard.set(Array(([draft.folder] + saved.filter { $0 != draft.folder }).prefix(8)), forKey: "recentFolders")
                 self.newAgent = nil
             case .failure(let failure):
                 self.newAgent?.busy = false
                 self.newAgent?.error = failure.message
+            }
+        }
+        if draft.agent == .claude {
+            ClaudeCLI.launch(prompt: prompt, in: draft.folder, worktree: worktree) { [weak self] result in
+                finished(result.map { self?.launched.insert($0); return () })
+            }
+        } else {
+            TmuxAgents.launch(draft.agent, prompt: prompt, in: draft.folder, worktree: worktree) { [weak self] result in
+                finished(result.map { self?.launchedPanes[$0.pane] = $0.session; return () })
             }
         }
     }
@@ -240,6 +261,8 @@ final class SessionStore: ObservableObject {
             if let url = session.url.flatMap(URL.init) { NSWorkspace.shared.open(url) }
         } else if session.ended {
             Jump.open(folder: session.cwd, for: session)
+        } else if let name = session.tmuxSession {
+            TmuxAgents.attach(name)
         } else if session.background {
             ClaudeCLI.attach(session.id)
         } else {
@@ -420,6 +443,7 @@ final class SessionStore: ObservableObject {
             sessions[i].term = event["term"] as? String
             sessions[i].app = (event["app"] as? String).flatMap { $0.range(of: "^[A-Za-z0-9.-]+$", options: .regularExpression) != nil ? $0 : nil }
             sessions[i].pane = Pane(event)
+            if case let .tmux(_, pane)? = sessions[i].pane, let name = launchedPanes[pane] { sessions[i].tmuxSession = name }
         }
         if let mode = event["permission_mode"] as? String { sessions[i].mode = mode }
         // Claude's titles and model come from its transcript; the others tell us in the event.
