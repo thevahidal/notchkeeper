@@ -1,7 +1,7 @@
 #!/bin/sh
 # Sends the event to the Notchkeeper app. Silent and non-blocking when the app isn't running.
 # Adds where the agent runs (tty, terminal app, tmux / WezTerm / kitty pane) so Notchkeeper can jump to it,
-# and which agent sent it ($1: codex, gemini; none means Claude Code).
+# and which agent sent it ($1: codex, gemini, cursor, …; none means Claude Code).
 # Hooks run detached from the terminal, so walk up to the first ancestor that has one.
 pid=$$
 tty="??"
@@ -23,6 +23,6 @@ kitty_socket=$(safe "$KITTY_LISTEN_ON" 'A-Za-z0-9/:._-')
 extra=$(printf ',"tty":"%s","term":"%s","app":"%s","agent":"%s","tmux_pane":"%s","tmux_socket":"%s","wezterm_pane":"%s","kitty_window":"%s","kitty_socket":"%s"}' \
   "$tty" "$term" "$app" "$agent" "$tmux_pane" "$tmux_socket" "$wezterm_pane" "$kitty_window" "$kitty_socket")
 tr -d '\n' | { cat; echo; } | sed "s|}\$|$extra|" | nc -U -w 1 "$HOME/.notchkeeper/notchkeeper.sock" >/dev/null 2>&1
-# Codex reads a Stop hook's stdout as JSON; an empty object means "carry on".
-[ "$agent" = codex ] && echo '{}'
+# Codex and Cursor read the stdout as JSON; an empty object means "carry on".
+case "$agent" in codex|cursor) echo '{}' ;; esac
 exit 0

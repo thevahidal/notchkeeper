@@ -29,6 +29,7 @@ Notchkeeper (formerly Ping).
 - **Tell Claude**: deny with a message (`deny-message "<json string>"` → hook `decision.message`). Hook output tested; Claude reading the message not tested live.
 - **Settings window.** One place to configure everything (agents, notch, plugins, approvals, command line); opens on first launch, on reopening the app and from the menu bar. Connect/disconnect and plugin toggles tested in a scratch home.
 - **Codex and Gemini CLI.** Menu bar → Agents connects each (`~/.codex/hooks.json`, `~/.gemini/settings.json`). Codex approvals work through the same hook; Gemini is status only (its hooks can't answer approvals). Installer tested in a scratch home; event mapping tested with sample events. Not tested against the live CLIs (Codex needs its interactive /hooks approval; Gemini isn't signed in here).
+- **Cursor, Copilot CLI, Droid, Kiro CLI, OpenCode, Mistral Vibe.** Status only, connected from Settings like Codex. Each agent's paths, events and field names live in one table (`Agent.Spec` in `HookInstaller.swift`). None of them is hooked before a tool runs: in Cursor, Copilot and Kiro a failing hook there blocks the tool. OpenCode uses a bundled plugin (`hooks/notchkeeper-opencode.js`); Vibe gets a marked block in `~/.vibe/hooks.toml`. Tested: install and removal for all six in a scratch home, keeping the user's own entries; OpenCode live (prompt, tool and done events reach the hook). Not tested live: Cursor (`cursor-agent` wasn't signed in), Copilot, Droid, Kiro, Vibe (not installed).
 - **tmux, WezTerm, kitty.** The hook reports the pane; jump and reply go to the exact pane. tmux tested end to end with a stand-in agent; WezTerm and kitty untested (not installed). Unknown terminals come forward by the bundle id in the hook's environment.
 - **Never lose track.** Waiting agents kept 24h, sessions saved to `~/.notchkeeper/sessions.json` and restored with a catch-up card, snooze (15m / 1h / tomorrow 9), nudges every 10 min (3 when away). Tested in a scratch home.
 - **Chat history in the reply card** (Claude transcripts, last ~14 lines, tail-read).
@@ -50,6 +51,10 @@ Notchkeeper (formerly Ping).
 - **Native phone companion.** Today: ntfy plugin (notifications only). A real iPhone / Watch app with approvals needs Xcode, an Apple Developer account, and a relay between phone and Mac; approving from a phone means the request leaves the Mac, so it needs end-to-end encryption and pairing. Design before building.
 - **Linux.** Hooks and protocol are portable (PROTOCOL.md). Needs a client: GNOME Shell extension or Waybar module listening on the socket, plus Linux terminal jumps (tmux works as is).
 - **Chat history for Codex and Gemini** (different transcript formats).
+- **Verify the new agents live.** Cursor (a logging test project is easy to rebuild: project `.cursor/hooks.json`), Copilot (PascalCase event names were picked because the docs show `hook_event_name` only for those), Droid, Kiro v3, Vibe (docs don't say what `hook_event_name` holds or whether hooks need an experimental flag).
+- **Approvals for the new agents.** Droid (`PreToolUse` permissionDecision), Copilot (`permissionRequest`), Cursor (`beforeShellExecution`, `ask` has open bugs), OpenCode (`permission.asked` event + reply API). Only after seeing each work live.
+- **Windsurf and Cline.** Windsurf's hook docs now redirect to Devin Desktop with a different format; Cline's docs describe JS plugins only. Revisit when documented.
+- **Agent icons.** Codex, Cursor and Copilot all show "C"; use each app's icon where one is installed.
 
 ## Ideas
 - Deny with feedback: a text field whose message goes back to Claude.

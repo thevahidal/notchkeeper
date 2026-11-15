@@ -302,7 +302,7 @@ final class SessionStore: ObservableObject {
 
     func apply(_ raw: [String: Any], reply: EventServer.Reply? = nil) {
         let agent = (raw["agent"] as? String).flatMap(Agent.init).flatMap { $0 == .claude ? nil : $0 }
-        let event = agent == .gemini ? Self.fromGemini(raw) : raw
+        let event = agent?.normalize(raw) ?? raw
         guard let id = event["session_id"] as? String, let name = event["hook_event_name"] as? String else { return }
         if name == "Item" { return applyItem(id, event) }
         let repo = ((event["cwd"] as? String ?? "") as NSString).lastPathComponent
@@ -741,15 +741,6 @@ final class SessionStore: ObservableObject {
             let lines = Chat.read(path)
             DispatchQueue.main.async { if self?.replyTo?.id == session.id { self?.chat = lines } }
         }
-    }
-
-    // Gemini CLI's events, renamed to their Claude Code equivalents so the rest of the store treats them alike.
-    private static func fromGemini(_ event: [String: Any]) -> [String: Any] {
-        var event = event
-        let names = ["BeforeAgent": "UserPromptSubmit", "BeforeTool": "PreToolUse", "AfterTool": "PostToolUse", "AfterAgent": "Stop"]
-        if let name = event["hook_event_name"] as? String, let mapped = names[name] { event["hook_event_name"] = mapped }
-        if let response = event["prompt_response"] as? String { event["last_assistant_message"] = response }
-        return event
     }
 
     // Only "add an allow rule" suggestions, and only for this session: never saved to a settings file.

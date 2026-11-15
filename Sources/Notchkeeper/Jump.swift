@@ -104,8 +104,8 @@ enum Jump {
 
     // If the agent has exited, the pane is a plain shell and Enter would run the reply as a command.
     private static func agentInForeground(_ tty: String, _ agent: String?) -> Bool {
-        // Codex and Gemini ship as Node scripts too, so their process may just be "node".
-        let names = agent == nil ? ["claude"] : [agent!, "node"]
+        // Several agents ship as Node scripts, so their process may just be "node".
+        let names = agent.map { [(Agent(rawValue: $0)?.process ?? $0), "node"] } ?? ["claude"]
         let (_, out) = ClaudeCLI.run("/bin/ps", ["-t", tty, "-o", "stat=,comm="])
         // "+" marks the foreground process group.
         return out.split(separator: "\n").contains { line in

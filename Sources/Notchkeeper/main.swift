@@ -7,7 +7,7 @@ if let verb = CommandLine.arguments.dropFirst().first, verb == "notify" || verb 
 
 // For scripts and package managers: edit the hooks and exit, without starting the app.
 if let flag = CommandLine.arguments.dropFirst().first, flag == "--connect" || flag == "--disconnect" {
-    // An optional second argument names the agent: claude (default), codex or gemini.
+    // An optional second argument names the agent: claude (default), codex, gemini, cursor, copilot, droid, kiro, opencode or vibe.
     let name = CommandLine.arguments.dropFirst(2).first ?? "claude"
     do {
         guard let agent = Agent(rawValue: name) else { throw HookInstaller.Failure(errorDescription: "unknown agent \(name)") }

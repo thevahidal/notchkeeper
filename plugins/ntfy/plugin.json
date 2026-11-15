@@ -1,6 +1,10 @@
 {
   "name": "Phone (ntfy)",
-  "description": "Pushes 'needs you' and 'done' to your phone through ntfy.sh. Sends only the agent's title. Needs topic.txt.",
+  "description": "Pushes 'needs you' and 'done' to your phone through ntfy.sh. Sends only the agent's title. Needs a topic.",
   "run": "run.sh",
-  "on": ["needs-you", "done"]
+  "on": ["needs-you", "done"],
+  "settings": [
+    { "key": "topic", "title": "Topic", "type": "text" },
+    { "key": "server", "title": "Server", "type": "text", "default": "https://ntfy.sh" }
+  ]
 }

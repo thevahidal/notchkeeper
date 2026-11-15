@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notchkeeper: Claude Code agents in your notch</title>
-<meta name="description" content="Notchkeeper turns your MacBook's notch into a live control tower for Claude Code, Codex and Gemini CLI. See every agent, approve commands and reply without switching windows. Free and open source.">
+<meta name="description" content="Notchkeeper turns your MacBook's notch into a live control tower for Claude Code, Codex, Gemini CLI, Cursor, OpenCode and more. See every agent, approve commands and reply without switching windows. Free and open source.">
 <meta property="og:title" content="Notchkeeper: Claude Code agents in your notch">
 <meta property="og:description" content="Live status, approvals and replies for your Claude Code agents, right in the MacBook notch.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='black'/><circle cx='11' cy='16' r='3.5' fill='%23b0a8ed'/><circle cx='21' cy='16' r='3.5' fill='%23f09e26'/></svg>">
@@ -305,7 +305,7 @@
       <a class="btn primary" href="https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg"> Download for Mac</a>
       <div class="copy"><code>brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper</code><button data-copy="brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper">Copy</button></div>
     </div>
-    <p class="meta">macOS 14+ · Apple silicon · Claude Code, Codex &amp; Gemini CLI</p>
+    <p class="meta">macOS 14+ · Apple silicon · Claude Code, Codex, Gemini, Cursor, Copilot, OpenCode &amp; more</p>
 
     <div class="stage" id="stage">
       <div class="screen">
@@ -748,7 +748,7 @@ open .build/Notchkeeper.app</pre>
   }
 
   const CH = [
-    ['Live status', 'One dot per agent: violet while it works. Claude Code, Codex and Gemini CLI, side by side.', live],
+    ['Live status', 'One dot per agent: violet while it works. Claude Code, Codex, Gemini, Cursor, OpenCode and more, side by side.', live],
     ['Risky commands', 'Claude wants to pipe a downloaded script into bash. Notchkeeper flags it before you answer. Try it: allow, deny, or tell Claude what to do instead.', risky],
     ['Reply from the notch', 'Finished agents turn green. When one asks you something, read the last turns and reply from the notch; it goes to the right terminal.', reply],
     ['Jump to any agent', 'Click an agent to jump to its window: the exact terminal tab, or the Claude desktop app.', jumpTo],

@@ -69,6 +69,11 @@ final class SettingsModel: ObservableObject {
             self.refresh()
         })
     }
+
+    func pluginSetting<T>(_ plugin: Plugin, _ setting: PluginSetting, _ fallback: T) -> Binding<T> {
+        Binding(get: { Plugins.values(plugin)[setting.key] as? T ?? fallback },
+                set: { Plugins.save(plugin, setting.key, $0); self.refresh() })
+    }
 }
 
 struct SettingsView: View {
@@ -124,11 +129,12 @@ struct SettingsView: View {
                         Text(plugin.name)
                         Text(plugin.description)
                     }
+                    // Only for plugins that are on, so the list stays short.
+                    if Plugins.enabled.contains(plugin.id) {
+                        ForEach(plugin.settings, id: \.key) { settingRow(plugin, $0).padding(.leading, 16) }
+                    }
                 }
-                HStack {
-                    Button("Add Example Plugins") { Plugins.installExamples(); model.refresh() }
-                    Button("Open Plugins Folder") { Plugins.openFolder() }
-                }
+                Button("Open Plugins Folder") { Plugins.openFolder() }
             } header: {
                 Text("Plugins")
             } footer: {
@@ -169,6 +175,20 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
+    private func settingRow(_ plugin: Plugin, _ setting: PluginSetting) -> some View {
+        switch setting.type {
+        case "toggle":
+            Toggle(setting.title, isOn: model.pluginSetting(plugin, setting, false))
+        case "choice":
+            Picker(setting.title, selection: model.pluginSetting(plugin, setting, "")) {
+                ForEach(setting.options, id: \.self) { Text($0) }
+            }
+        default:
+            TextField(setting.title, text: model.pluginSetting(plugin, setting, ""))
+        }
+    }
+
+    @ViewBuilder
     private func agentRow(_ agent: Agent) -> some View {
         let connected = HookInstaller.isConnected(agent)
         HStack {
@@ -185,11 +205,7 @@ struct SettingsView: View {
 
     private func agentNote(_ agent: Agent, _ connected: Bool) -> String {
         if !connected { return agent.isInstalled ? "Not connected" : "Not installed" }
-        switch agent {
-        case .claude: return "Connected · status and approvals"
-        case .codex: return "Connected · approve the hooks in Codex with /hooks"
-        case .gemini: return "Connected · status only, approvals stay in Gemini"
-        }
+        return "Connected · " + agent.spec.note
     }
 }
 
