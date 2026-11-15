@@ -38,6 +38,7 @@ Notchkeeper (formerly Ping).
 - **Show on Active Display**: follows the frontmost window's screen; untested on multiple displays (only one here).
 - **Items**: `notchkeeper notify` / `notchkeeper run` over the socket. Tested end to end against the running app.
 - **Plugins**: `~/.notchkeeper/plugins/*/plugin.json`, events needs-you / done / approval; examples say, journal, ntfy. Path escape rejected; journal and ntfy (local fake server) tested.
+- **Backlog plugin**: `plugins/backlog/run.js` (JXA) on new `reply` / `tick` events plus `prompt`; `notchkeeper todo list|add|done|edit`; optional local model (localhost only). Tested in a scratch home: tag capture, dedupe, reminders sent once, Ollama qwen2.5 follow-ups and reminders, fallback with the server down, `todo` through the app binary. Not tried in the running app: the reminder row and `reply` from a live agent.
 - **App icon** (`tools/icon.sh`) and **screenshots** rendered from the real views (`tools/screenshots.sh`).
 
 ## Open

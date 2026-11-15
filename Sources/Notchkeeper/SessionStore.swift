@@ -496,6 +496,9 @@ final class SessionStore: ObservableObject {
         if name == "UserPromptSubmit", let prompt = event["prompt"] as? String {
             emit("prompt", sessions[i], extra: ["prompt": String(prompt.prefix(4000))])
         }
+        if name == "Stop", let message = event["last_assistant_message"] as? String {
+            emit("reply", sessions[i], extra: ["message": String(message.prefix(4000))])
+        }
         if entered { ActivityLog.record(state.rawValue, sessions[i]) }
         // A new event is unseen, unless it finished in the tab you're already looking at.
         sessions[i].seen = false

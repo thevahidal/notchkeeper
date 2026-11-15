@@ -10,6 +10,10 @@ if CommandLine.arguments.dropFirst().first == "plugin" {
     exit(PluginInstaller.main(Array(CommandLine.arguments.dropFirst(2))))
 }
 
+if CommandLine.arguments.dropFirst().first == "todo" {
+    exit(Plugins.todo(Array(CommandLine.arguments.dropFirst(2))))
+}
+
 // For scripts and package managers: edit the hooks and exit, without starting the app.
 if let flag = CommandLine.arguments.dropFirst().first, flag == "--connect" || flag == "--disconnect" {
     // An optional second argument names the agent: claude (default), codex, gemini, cursor, copilot, droid, kiro, opencode or vibe.

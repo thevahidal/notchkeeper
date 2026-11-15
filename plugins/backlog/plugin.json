@@ -1,0 +1,11 @@
+{
+  "name": "Backlog",
+  "description": "Collects follow-ups your agents leave (TODO:, Next:) and your own todos in ~/.notchkeeper/backlog.md, and pings you when a reminder is due. Use `notchkeeper todo` in a terminal. With a local model server it also finds follow-ups in plain sentences.",
+  "run": "run.js",
+  "on": ["reply", "prompt", "tick"],
+  "settings": [
+    { "key": "collect", "title": "Collect follow-ups from agents", "type": "toggle", "default": true },
+    { "key": "server", "title": "Local model server (e.g. http://127.0.0.1:11434)", "type": "text" },
+    { "key": "model", "title": "Model", "type": "text", "default": "qwen2.5" }
+  ]
+}

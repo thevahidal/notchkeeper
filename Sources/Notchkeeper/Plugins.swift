@@ -50,7 +50,7 @@ struct PluginSetting {
 
 enum Plugins {
     static let folder = HookInstaller.home + "/.notchkeeper/plugins"
-    static let events = ["needs-you", "done", "approval", "prompt"]
+    static let events = ["needs-you", "done", "approval", "prompt", "reply", "tick"]
     // Kept outside the plugin folders, so replacing a plugin keeps your settings.
     static let settingsFolder = HookInstaller.home + "/.notchkeeper/plugin-settings"
 
@@ -110,16 +110,17 @@ enum Plugins {
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
     }
 
-    static func emit(_ event: String, _ session: Session, extra: [String: Any] = [:], reply: @escaping ([String: Any]) -> Void) {
+    // `tick` has no session: it fires every minute for plugins that keep their own time.
+    static func emit(_ event: String, _ session: Session?, extra: [String: Any] = [:], reply: @escaping ([String: Any]) -> Void = { _ in }) {
         let targets = all.filter { enabled.contains($0.id) && $0.events.contains(event) }
         guard !targets.isEmpty else { return }
-        var payload: [String: Any] = [
-            "event": event,
-            "session": [
+        var payload: [String: Any] = ["event": event]
+        if let session {
+            payload["session"] = [
                 "id": session.id, "title": session.title.isEmpty ? session.repo : session.title, "repo": session.repo,
                 "agent": session.agent ?? "claude", "detail": session.question ?? session.detail, "url": session.url ?? "",
-            ],
-        ]
+            ]
+        }
         payload.merge(extra) { $1 }
         for plugin in targets {
             payload["settings"] = values(plugin)
@@ -176,6 +177,20 @@ enum Plugins {
             }
             try? fm.trashItem(at: URL(fileURLWithPath: dir), resultingItemURL: nil)
         }
+    }
+
+    // `notchkeeper todo …` runs the Backlog plugin's script in your terminal with these arguments.
+    static func todo(_ args: [String]) -> Int32 {
+        guard let plugin = all.first(where: { $0.id == "backlog" }), enabled.contains(plugin.id) else {
+            FileHandle.standardError.write(Data("Turn on the Backlog plugin in Notchkeeper's Settings first.\n".utf8))
+            return 2
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: plugin.executable)
+        process.arguments = args.isEmpty ? ["list"] : args
+        guard (try? process.run()) != nil else { return 1 }
+        process.waitUntilExit()
+        return process.terminationStatus
     }
 
     static func openFolder() {
