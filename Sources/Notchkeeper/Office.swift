@@ -44,7 +44,15 @@ struct OfficeView: View {
     @ViewBuilder
     private var allWorktrees: some View {
         if !all.repos.isEmpty {
-            section("All worktrees").padding(.top, 4)
+            let removable = all.repos.flatMap { repo in repo.work.worktrees.filter(canRemove).map { (root: repo.root, path: $0.path) } }
+            HStack {
+                section("All worktrees")
+                Spacer()
+                if !removable.isEmpty {
+                    Button("Remove \(count(removable.count, "safe worktree"))…") { remove(removable) }.controlSize(.small)
+                }
+            }
+            .padding(.top, 4)
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(all.repos) { repo in
                     group((repo.root as NSString).lastPathComponent) {
@@ -69,7 +77,40 @@ struct OfficeView: View {
         if !tree.ahead.isEmpty { parts.append(count(tree.ahead.count, "commit") + " not merged") }
         if parts.isEmpty { parts.append("Safe to remove") }
         if tree.locked { parts.append("locked by a Claude session") }
+        if hasAgent(tree) { parts.append("an agent is in it") }
         return parts.joined(separator: " · ")
+    }
+
+    private func hasAgent(_ tree: Work.Worktree) -> Bool {
+        store.sessions.contains { !$0.ended && !$0.isItem && ($0.cwd == tree.path || $0.cwd.hasPrefix(tree.path + "/")) }
+    }
+
+    private func canRemove(_ tree: Work.Worktree) -> Bool { tree.saved && !tree.locked && !hasAgent(tree) }
+
+    // Plain `git worktree remove`, never --force: git itself refuses one that has changes since the scan. Branches stay.
+    private func remove(_ trees: [(root: String, path: String)]) {
+        let names = trees.map { ($0.path as NSString).lastPathComponent }
+        let alert = NSAlert()
+        alert.messageText = "Remove \(count(trees.count, "worktree"))?"
+        alert.informativeText = names.joined(separator: "\n") + "\n\nEverything in them is already in the main checkout. Their branches stay."
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let folders = store.knownFolders
+        DispatchQueue.global(qos: .userInitiated).async { [all] in
+            let kept = zip(trees, names).compactMap { tree, name -> String? in
+                let (status, out) = ClaudeCLI.run("/usr/bin/git", ["-C", tree.root, "worktree", "remove", tree.path])
+                return status == 0 ? nil : name + ": " + (out.split(separator: "\n").first.map(String.init) ?? "git refused")
+            }
+            DispatchQueue.main.async {
+                all.load(folders)
+                guard !kept.isEmpty else { return }
+                let report = NSAlert()
+                report.messageText = "Git kept \(kept.count) of \(trees.count)"
+                report.informativeText = kept.joined(separator: "\n")
+                report.runModal()
+            }
+        }
     }
 
     // In the terminal your agents use, else Finder.
