@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parent.parent
 LISTINGS = ROOT / "marketplace"
 OUT = ROOT / "docs" / "plugins.json"
 EVENTS = {"needs-you", "done", "approval"}
+# Official comes from where the code lives, never from a field the author sets.
+OFFICIAL_OWNER = "https://github.com/thevahidal/"
 FIELDS = {"author", "repo", "commit", "path", "license", "sendsDataOffMac", "builtIn"}
 
 
@@ -37,8 +39,8 @@ def check_listing(id, listing):
     if unknown := set(listing) - FIELDS:
         fail(id, f"unknown fields: {', '.join(sorted(unknown))}")
     for key in ("author", "license"):
-        if not isinstance(listing.get(key), str) or not listing[key]:
-            fail(id, f"{key} is required")
+        if not isinstance(listing.get(key), str) or not 0 < len(listing[key]) <= 60:
+            fail(id, f"{key} is required, up to 60 characters")
     if not isinstance(listing.get("sendsDataOffMac"), bool):
         fail(id, "sendsDataOffMac must be true or false")
     if listing.get("builtIn"):
@@ -47,17 +49,19 @@ def check_listing(id, listing):
         fail(id, "repo must be https://github.com/<owner>/<repo>")
     if not re.fullmatch(r"[0-9a-f]{40}", listing.get("commit", "")):
         fail(id, "commit must be a full 40-character sha")
+    # The path ends up in a shell command, so only plain folder names are allowed.
     path = listing.get("path", "")
-    if not isinstance(path, str) or path.startswith("/") or ".." in path.split("/"):
-        fail(id, "path must be a folder inside the repo")
+    if not isinstance(path, str) or not re.fullmatch(r"([\w.-]+(/[\w.-]+)*)?", path) or ".." in path.split("/"):
+        fail(id, "path must be a folder inside the repo (letters, digits, . _ - and /)")
 
 
 def check_manifest(id, plugin):
     run = plugin.get("run")
     if not isinstance(run, str) or run.startswith("/") or posixpath.normpath(run).startswith(".."):
         fail(id, "plugin.json: run must be a script inside the plugin's folder")
-    if not isinstance(plugin.get("name"), str) or not isinstance(plugin.get("description"), str):
-        fail(id, "plugin.json: name and description are required")
+    name, description = plugin.get("name"), plugin.get("description")
+    if not isinstance(name, str) or not 0 < len(name) <= 40 or not isinstance(description, str) or not 0 < len(description) <= 300:
+        fail(id, "plugin.json: name (up to 40 characters) and description (up to 300) are required")
     events = plugin.get("on", [])
     if not events or not set(events) <= EVENTS:
         fail(id, f"plugin.json: on must list some of {', '.join(sorted(EVENTS))}")
@@ -91,6 +95,7 @@ def entry(file):
     return {
         "id": id, "name": plugin["name"], "description": plugin["description"],
         "author": listing["author"], "license": listing["license"], "builtIn": builtIn,
+        "official": builtIn or listing["repo"].startswith(OFFICIAL_OWNER),
         "sendsDataOffMac": listing["sendsDataOffMac"], "events": plugin["on"],
         "settings": [{k: s[k] for k in ("key", "title", "type", "options") if k in s} for s in plugin.get("settings", [])],
         "source": source, "install": install_command(id, listing),
@@ -99,7 +104,7 @@ def entry(file):
 
 def main():
     plugins = [entry(file) for file in sorted(LISTINGS.glob("*.json"))]
-    plugins.sort(key=lambda p: (not p["builtIn"], p["name"].lower()))
+    plugins.sort(key=lambda p: (not p["official"], not p["builtIn"], p["name"].lower()))
     text = json.dumps(plugins, indent=2) + "\n"
     if "--check" in sys.argv:
         if not OUT.exists() or OUT.read_text() != text:

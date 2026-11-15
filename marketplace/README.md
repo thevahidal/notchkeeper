@@ -19,7 +19,8 @@ The plugin list on the website is built from the files in this folder, one per p
 }
 ```
 
-- `path`: the plugin's folder inside the repo. Leave it empty if `plugin.json` is at the top.
+- `path`: the plugin's folder inside the repo, using only letters, digits, `.`, `_`, `-` and `/`. Leave it empty if `plugin.json` is at the top.
+- Limits: `author` and `license` up to 60 characters; in `plugin.json`, `name` up to 40 and `description` up to 300. The site shows all text as plain text, never as HTML.
 - `sendsDataOffMac`: `true` if the plugin sends anything over the network. Be honest; the site shows it on the card.
 - Name, description, events and settings come from your `plugin.json`, so they can't drift from the real plugin.
 
