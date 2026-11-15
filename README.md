@@ -2,7 +2,7 @@
 
 *Formerly Ping.*
 
-Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch and shows what every Claude Code, Codex and Gemini CLI agent is doing, which one is stuck waiting on you, and lets you answer without switching windows. Built for people juggling many things: nothing waiting on you gets lost.
+Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch and shows what every coding agent is doing (Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI, Droid, Kiro, OpenCode and Mistral Vibe), which one is stuck waiting on you, and lets you answer without switching windows. Built for people juggling many things: nothing waiting on you gets lost.
 
 **[thevahidal.github.io/notchkeeper](https://thevahidal.github.io/notchkeeper/)** · [Download](https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg) · `brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper`
 
@@ -48,8 +48,14 @@ Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch a
 | Claude Code (CLI and desktop app) | ✅ | ✅ | ✅ | ✅ |
 | Codex CLI | ✅ | ✅ (no "for session") | — | — |
 | Gemini CLI | ✅ | — (Gemini's hooks can't answer approvals) | — | — |
+| Cursor (app and `cursor-agent`) | ✅ | — | — | — |
+| Copilot CLI | ✅ | — | — | — |
+| Droid (Factory) | ✅ | — | — | — |
+| Kiro CLI (v3) | ✅ | — | — | — |
+| OpenCode | ✅ | — | — | — |
+| Mistral Vibe | ✅ | — | — | — |
 
-Cursor's CLI doesn't run hooks reliably yet, so it isn't supported.
+The newer agents are status only, and approvals stay in the agent: none of them is hooked before a tool runs, where a failing hook would block the tool. Only OpenCode has been tried live so far; Cursor, Copilot, Droid, Kiro and Vibe follow their docs. Windsurf and Cline aren't supported: their hook docs don't describe a format we can rely on.
 
 **Terminals** (jump to the exact pane, and reply)
 
@@ -93,9 +99,9 @@ open .build/Notchkeeper.app
 
 On first launch Notchkeeper asks, in the notch, whether to connect to Claude Code. Coming from Ping? Notchkeeper offers to swap Ping's hooks for its own and removes the old `~/.ping` hooks. **Connect** copies the two hook scripts to `~/.notchkeeper/hooks/` and adds them to `~/.claude/settings.json`. It keeps a backup of your settings next to the original and leaves your other settings and hooks as they are.
 
-**Settings** (menu bar icon 〰 → Settings…, or open the app again) is one window for everything: connect or disconnect each agent, sounds, quiet mode, which display, launch at login, plugins, the approval log and the `notchkeeper` command. It opens by itself the first time. **Codex** and **Gemini CLI** show up under Agents when they're installed; click one to connect it. Codex runs new hooks only after you approve them, so open Codex and approve Notchkeeper's in `/hooks`. The first time you click a row or reply, macOS asks whether Notchkeeper may control that terminal (Ghostty, iTerm2 or Terminal).
+**Settings** (menu bar icon 〰 → Settings…, or open the app again) is one window for everything: connect or disconnect each agent, sounds, quiet mode, which display, launch at login, plugins, the approval log and the `notchkeeper` command. It opens by itself the first time. Other agents show up under Agents when they're installed; click one to connect it. Codex runs new hooks only after you approve them, so open Codex and approve Notchkeeper's in `/hooks`. The first time you click a row or reply, macOS asks whether Notchkeeper may control that terminal (Ghostty, iTerm2 or Terminal).
 
-From a script: `Notchkeeper.app/Contents/MacOS/Notchkeeper --connect [claude|codex|gemini]` or `--disconnect [agent]` edits the hooks and exits.
+From a script: `Notchkeeper.app/Contents/MacOS/Notchkeeper --connect [claude|codex|gemini|cursor|copilot|droid|kiro|opencode|vibe]` or `--disconnect [agent]` edits the hooks and exits.
 
 ### Uninstall
 
@@ -119,14 +125,14 @@ Otherwise:
 ## How it works
 
 ```
-Claude Code / Codex / Gemini CLI
+Claude Code / Codex / Gemini CLI / Cursor / Copilot / Droid / Kiro / OpenCode / Vibe
    │  runs a hook on each event: tool use, stop, notification, subagent, …
    ▼
 ~/.notchkeeper/hooks/notchkeeper-hook.sh   ──►  ~/.notchkeeper/notchkeeper.sock  ──►  Notchkeeper (notch)
 ~/.notchkeeper/hooks/notchkeeper-approve.sh ◄── "allow" / "deny" ◄──┘   (only for permission requests)
 ```
 
-1. Claude Code reads hooks from `~/.claude/settings.json` (the CLI and the desktop app share it), Codex from `~/.codex/hooks.json`, Gemini CLI from `~/.gemini/settings.json`.
+1. Claude Code reads hooks from `~/.claude/settings.json` (the CLI and the desktop app share it), Codex from `~/.codex/hooks.json`, Gemini CLI from `~/.gemini/settings.json`, Cursor from `~/.cursor/hooks.json`, Droid from `~/.factory/hooks.json` (or `settings.json`), Vibe from `~/.vibe/hooks.toml` (in a marked block). Copilot, Kiro and OpenCode get a file of Notchkeeper's own: `~/.copilot/hooks/notchkeeper.json`, `~/.kiro/hooks/notchkeeper.json`, `~/.config/opencode/plugins/notchkeeper.js` (a small plugin that sends OpenCode's events through the same hook script).
 2. `notchkeeper-hook.sh` forwards each event's JSON to Notchkeeper over a local Unix socket and exits right away. It adds where the agent runs (tty, terminal app, tmux / WezTerm / kitty pane) so Notchkeeper can jump to it.
 3. `notchkeeper-approve.sh` runs only when Claude needs permission. It waits up to 30 seconds for Notchkeeper to answer `allow`, `deny` or `allow-session` and prints the matching decision for Claude.
 4. Notchkeeper keeps sessions in memory and in `~/.notchkeeper/sessions.json`, so they survive a restart. For Claude's session titles, questions and model it reads the transcript in `~/.claude/projects/`.
@@ -137,7 +143,7 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 
 **What data goes where**
 - Hook events contain your prompts, the commands Claude runs and the contents of files it edits. They go only to Notchkeeper, over a Unix socket in `~/.notchkeeper`. Nothing is sent over the network: Notchkeeper opens no TCP or UDP connections, has no telemetry and needs no account.
-- Notchkeeper writes only the socket, its hook scripts in `~/.notchkeeper/hooks`, the approval log `~/.notchkeeper/approvals.log` and the activity log `~/.notchkeeper/activity.log` (both `600`, rotated at 1 MB; turn the activity log off in Settings), the saved session list `~/.notchkeeper/sessions.json` (`600`; it holds titles and recent activity), and, when you connect or disconnect an agent, that agent's settings file (`~/.claude/settings.json`, `~/.codex/hooks.json` or `~/.gemini/settings.json`) plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
+- Notchkeeper writes only the socket, its hook scripts in `~/.notchkeeper/hooks`, the approval log `~/.notchkeeper/approvals.log` and the activity log `~/.notchkeeper/activity.log` (both `600`, rotated at 1 MB; turn the activity log off in Settings), the saved session list `~/.notchkeeper/sessions.json` (`600`; it holds titles and recent activity), and, when you connect or disconnect an agent, that agent's settings file (listed under How it works) plus a backup, or the file of Notchkeeper's own for Copilot, Kiro and OpenCode. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
 
 **Approvals**
 - Notchkeeper can only answer a permission request that Claude sends it. It can't invent one or widen what Claude asked for.

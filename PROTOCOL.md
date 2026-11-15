@@ -9,11 +9,11 @@ Everything Notchkeeper shows arrives as JSON over one local Unix socket. Anythin
 
 ## Agent events
 
-What the hook scripts send. The body is the agent's own hook JSON (Claude Code, Codex, or Gemini CLI), plus these fields added by `notchkeeper-hook.sh`:
+What the hook scripts send. The body is the agent's own hook JSON (Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI, Droid, Kiro, OpenCode or Mistral Vibe), plus these fields added by `notchkeeper-hook.sh`:
 
 | Field | Meaning |
 |---|---|
-| `agent` | `""` for Claude Code, else `codex` or `gemini` |
+| `agent` | `""` for Claude Code, else `codex`, `gemini`, `cursor`, `copilot`, `droid`, `kiro`, `opencode` or `vibe` |
 | `tty` | the agent's terminal, e.g. `ttys012`; `??` for none (the desktop app) |
 | `term` | `$TERM_PROGRAM` |
 | `app` | `$__CFBundleIdentifier`, the macOS app the terminal runs in |
@@ -21,7 +21,7 @@ What the hook scripts send. The body is the agent's own hook JSON (Claude Code, 
 | `wezterm_pane` | `$WEZTERM_PANE` |
 | `kitty_window`, `kitty_socket` | `$KITTY_WINDOW_ID`, `$KITTY_LISTEN_ON` |
 
-Fields Notchkeeper reads from the agent's JSON: `session_id`, `hook_event_name`, `cwd`, `transcript_path`, `permission_mode`, `tool_name`, `tool_input`, `prompt`, `message`, `notification_type`, `last_assistant_message`, `agent_id`, `agent_type`, `model`, `permission_suggestions`. Gemini's names (`BeforeTool`, `AfterAgent`, `prompt_response`, …) are mapped to Claude's.
+Fields Notchkeeper reads from the agent's JSON: `session_id`, `hook_event_name`, `cwd`, `transcript_path`, `permission_mode`, `tool_name`, `tool_input`, `prompt`, `message`, `notification_type`, `last_assistant_message`, `agent_id`, `agent_type`, `model`, `permission_suggestions`. Other agents' names are mapped to Claude's: Gemini's `BeforeTool`, `AfterAgent`, `prompt_response`; Cursor's `beforeSubmitPrompt`, `stop`, `conversation_id`, `workspace_roots`; Copilot's `sessionId`, `toolName`, `toolArgs`; Vibe's `post_tool`, `post_agent`. The OpenCode plugin sends Claude's names itself.
 
 ## Permission requests
 

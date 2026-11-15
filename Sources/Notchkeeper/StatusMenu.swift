@@ -60,8 +60,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                 store.offerConnect = true
             } else {
                 try HookInstaller.connect(agent)
-                // Codex runs new hooks only after you approve them.
-                if agent == .codex { tell("Codex connected", "Open Codex and approve Notchkeeper's hooks with /hooks. Until then Codex won't run them.") }
+                if let hint = agent.spec.connectHint { tell("\(agent.title) connected", hint) }
             }
         } catch {
             tell("Couldn't change \(agent.title)'s hooks", error.localizedDescription)

@@ -198,11 +198,7 @@ struct SettingsView: View {
 
     private func agentNote(_ agent: Agent, _ connected: Bool) -> String {
         if !connected { return agent.isInstalled ? "Not connected" : "Not installed" }
-        switch agent {
-        case .claude: return "Connected · status and approvals"
-        case .codex: return "Connected · approve the hooks in Codex with /hooks"
-        case .gemini: return "Connected · status only, approvals stay in Gemini"
-        }
+        return "Connected · " + agent.spec.note
     }
 }
 
