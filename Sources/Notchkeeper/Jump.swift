@@ -15,7 +15,7 @@ enum Jump {
     private static let scriptable: Set = ["ghostty", "iTerm.app", "Apple_Terminal"]
 
     static func canReply(_ session: Session) -> Bool {
-        session.tty != nil && scriptable.contains(session.term ?? "")
+        session.tty != nil && !session.background && scriptable.contains(session.term ?? "")
     }
 
     // The app the session runs in, if known: the desktop app, or the terminal for CLI sessions.

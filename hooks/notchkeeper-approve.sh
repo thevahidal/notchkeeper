@@ -8,5 +8,7 @@ case "$reply" in
   deny) printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Denied from Notchkeeper"}}}\n' ;;
   # Notchkeeper sends Claude's own suggested rules, scoped to this session, as one line of JSON.
   "allow-session ["*"]") printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow","updatedPermissions":%s}}}\n' "${reply#allow-session }" ;;
+  # Deny and tell Claude why or what to do instead; Notchkeeper sends the message as a JSON string.
+  "deny-message \""*"\"") printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":%s}}}\n' "${reply#deny-message }" ;;
 esac
 exit 0

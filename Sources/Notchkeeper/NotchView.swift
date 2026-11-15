@@ -16,12 +16,14 @@ struct NotchView: View {
             ZStack(alignment: .top) {
                 shape.fill(.black)
                 if let approval {
-                    ApprovalCard(approval: approval, title: title(approval.sessionId), notchHeight: state.notch.height) {
+                    ApprovalCard(store: store, approval: approval, title: title(approval.sessionId), notchHeight: state.notch.height) {
                         store.answer(approval, $0)
                     }
                     .transition(fade)
                 } else if store.offerConnect {
                     ConnectCard(store: store, notchHeight: state.notch.height).transition(fade)
+                } else if store.newAgent != nil {
+                    NewAgentCard(store: store, notchHeight: state.notch.height).transition(fade)
                 } else if let session = store.replyTo {
                     ReplyCard(store: store, session: session, notchHeight: state.notch.height).transition(fade)
                 } else if let plan = store.plan {
@@ -48,6 +50,7 @@ struct NotchView: View {
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.replyTo?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.plan?.sessionId)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.catchUp?.since)
+        .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.newAgent != nil)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: store.headline?.id)
     }
 
@@ -136,6 +139,7 @@ struct NotchView: View {
                 }
             }
             Spacer()
+            HeaderToggle(on: false, symbol: "plus", help: "Start a background agent") { store.openNewAgent() }
             HeaderToggle(on: store.sounds, symbol: store.sounds ? "speaker.wave.2.fill" : "speaker.slash.fill",
                          help: store.sounds ? "Sounds on" : "Sounds off") { store.sounds.toggle() }
             HeaderToggle(on: store.quiet, symbol: "moon.fill",
@@ -162,6 +166,8 @@ struct NotchView: View {
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.working[1])
                     }
+                    if session.background { Tag(text: "bg", color: Palette.plan) }
+                    if let n = store.queued[session.id]?.count { Tag(text: "\(n) queued", color: Palette.working[1]) }
                     Spacer(minLength: 8)
                     if let mode = session.mode { ModeBadge(mode: mode) }
                     Elapsed(session: session)
@@ -188,16 +194,16 @@ struct NotchView: View {
                 .truncationMode(.middle)
                 .frame(height: state.subagentHeight - 4, alignment: .leading)
             }
-            if session.state != .working && Jump.canReply(session) {
+            if Jump.canReply(session) {
                 Button { store.replyTo = session } label: {
-                    Image(systemName: "arrowshape.turn.up.left.fill")
+                    Image(systemName: session.state == .working ? "text.badge.plus" : "arrowshape.turn.up.left.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(hovered ? 0.95 : 0.6))
                         .frame(width: 26, height: 26)
                         .background(.white.opacity(hovered ? 0.16 : 0.08), in: Circle())
                 }
                 .buttonStyle(.plain)
-                .help("Reply")
+                .help(session.state == .working ? "Queue a follow-up for when it finishes" : "Reply")
                 .padding(.top, 4)
             }
         }
@@ -248,6 +254,7 @@ enum Palette {
     static let needsYou = [Color(red: 0.96, green: 0.62, blue: 0.15), Color(red: 0.96, green: 0.45, blue: 0.40)]
     static let yourTurn = [Color(red: 0.55, green: 0.80, blue: 0.36), Color(red: 0.36, green: 0.79, blue: 0.65)]
     static let danger = Color(red: 0.98, green: 0.36, blue: 0.36)
+    static let plan = Color(red: 0.45, green: 0.65, blue: 0.98)
 
     static func glow(_ mood: Mood) -> [Color] {
         switch mood {
@@ -403,6 +410,7 @@ struct HeaderToggle: View {
 }
 
 struct ApprovalCard: View {
+    @ObservedObject var store: SessionStore
     let approval: Approval
     let title: String?
     let notchHeight: CGFloat
@@ -462,6 +470,9 @@ struct ApprovalCard: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+            if store.feedbackFor == approval.id {
+                FeedbackField(store: store) { onAnswer("deny-message") }
+            } else {
             HStack(spacing: 6) {
                 // On a risky call, Allow stops being the inviting button.
                 if approval.risk.level == .high {
@@ -475,8 +486,11 @@ struct ApprovalCard: View {
                     }
                 }
                 CardButton(title: "Deny", hint: "⌥N", fill: .white.opacity(0.12), text: .white) { onAnswer("deny") }
+                CardButton(title: "Tell Claude…", fill: .clear, text: .white.opacity(0.7)) { store.feedbackFor = approval.id }
+                    .help("Deny and say why, or what to do instead")
                 Spacer()
                 CardButton(title: "Terminal", fill: .clear, text: .white.opacity(0.55)) { onAnswer("terminal") }
+            }
             }
         }
         .padding(.horizontal, 18)
@@ -774,11 +788,138 @@ struct ConnectCard: View {
     }
 }
 
+struct Tag: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .frame(height: 14)
+            .background(color.opacity(0.16), in: Capsule())
+    }
+}
+
+// Deny, with a message Claude reads instead of a bare "no".
+struct FeedbackField: View {
+    @ObservedObject var store: SessionStore
+    let send: () -> Void
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField("Deny and tell Claude what to do instead…", text: $store.feedback)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(.white.opacity(0.08), in: Capsule())
+                .focused($focused)
+                .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focused = true } }
+                .onSubmit(send)
+                .onExitCommand { store.feedbackFor = nil; store.feedback = "" }
+            CardButton(title: "Deny and send", fill: .white.opacity(0.14), text: .white, action: send)
+        }
+    }
+}
+
+// Starts `claude --bg` in a folder, optionally in its own git worktree, so agents don't trip over each other.
+struct NewAgentCard: View {
+    @ObservedObject var store: SessionStore
+    let notchHeight: CGFloat
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        let draft = store.newAgent ?? NewAgent(folder: NSHomeDirectory(), worktree: false)
+        let isRepo = SessionStore.gitBranch(draft.folder) != nil
+        VStack(alignment: .leading, spacing: 10) {
+            Color.clear.frame(height: notchHeight - 8)
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 24, height: 24)
+                    .background(Palette.plan, in: RoundedRectangle(cornerRadius: 7))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("New background agent").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                    Text("Runs on its own, no terminal needed")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                Spacer()
+                Text("esc cancel").font(.system(size: 11)).foregroundStyle(.white.opacity(0.4))
+            }
+            HStack(spacing: 8) {
+                Menu {
+                    ForEach(store.recentFolders, id: \.self) { folder in
+                        Button((folder as NSString).abbreviatingWithTildeInPath) { store.openNewAgent(in: folder) }
+                    }
+                    Divider()
+                    Button("Choose…") { chooseFolder() }
+                } label: {
+                    Label((draft.folder as NSString).lastPathComponent, systemImage: "folder.fill")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(.white.opacity(0.08), in: Capsule())
+                Toggle(isOn: Binding(get: { draft.worktree && isRepo }, set: { store.newAgent?.worktree = $0 })) {
+                    Text("Own worktree").font(.system(size: 12))
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .disabled(!isRepo)
+                .help(isRepo ? "A separate checkout and branch, so parallel agents don't collide" : "Not a git repository")
+                .foregroundStyle(.white.opacity(isRepo ? 0.8 : 0.35))
+                Spacer()
+            }
+            TextField("What should it do?", text: Binding(get: { draft.prompt }, set: { store.newAgent?.prompt = $0 }))
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(.white)
+                .padding(9)
+                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+                .focused($focused)
+                .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focused = true } }
+                .onSubmit { store.launchAgent() }
+                .onExitCommand { store.newAgent = nil }
+            HStack(spacing: 6) {
+                CardButton(title: draft.busy ? "Starting…" : "Start", hint: "↩", fill: Palette.plan, text: .black) { store.launchAgent() }
+                CardButton(title: "Cancel", fill: .white.opacity(0.12), text: .white) { store.newAgent = nil }
+                if let error = draft.error {
+                    Text(error).font(.system(size: 11)).foregroundStyle(Palette.danger).lineLimit(2)
+                }
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 18)
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.directoryURL = URL(fileURLWithPath: store.newAgent?.folder ?? NSHomeDirectory())
+        NSApp.activate(ignoringOtherApps: true)
+        if panel.runModal() == .OK, let url = panel.url { store.openNewAgent(in: url.path) }
+    }
+}
+
 struct ReplyCard: View {
     @ObservedObject var store: SessionStore
     let session: Session
     let notchHeight: CGFloat
     @FocusState private var focused: Bool
+
+    private var working: Bool { store.sessions.first { $0.id == session.id }?.state == .working }
+    private var queuedNote: String {
+        store.queued[session.id].map { " \($0.count) already queued." } ?? ""
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -790,15 +931,16 @@ struct ReplyCard: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 Spacer()
-                Text("↩ send   esc cancel")
+                Text(working ? "↩ queue   esc cancel" : "↩ send   esc cancel")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.4))
             }
-            Text(session.question ?? session.detail)
+            Text(working ? "Still working. Your message is sent when this turn ends, unless it ends with a question." + queuedNote
+                         : session.question ?? session.detail)
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(2)
-            TextField("Reply…", text: $store.draft)
+            TextField(working ? "Queue a follow-up…" : "Reply…", text: $store.draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(.white)

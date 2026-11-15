@@ -21,6 +21,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: connected ? "Connected to Claude Code" : "Not connected to Claude Code", action: nil, keyEquivalent: ""))
         add(menu, connected ? "Disconnect" : "Connect…", #selector(toggleConnect))
         menu.addItem(.separator())
+        add(menu, "New Background Agent…", #selector(newAgent))
+        menu.addItem(.separator())
         add(menu, "Sounds", #selector(toggleSounds)).state = store.sounds ? .on : .off
         add(menu, "Quiet Mode", #selector(toggleQuiet)).state = store.quiet ? .on : .off
         add(menu, "Approval Log…", #selector(openLog))
@@ -57,6 +59,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
+    @objc private func newAgent() { store.openNewAgent() }
     @objc private func toggleSounds() { store.sounds.toggle() }
     @objc private func toggleQuiet() { store.quiet.toggle() }
 

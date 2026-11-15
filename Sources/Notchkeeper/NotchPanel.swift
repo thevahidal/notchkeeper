@@ -33,6 +33,7 @@ final class NotchState: ObservableObject {
             return 150 + (a.sessionRules.isEmpty ? 0 : 20) + (a.risk.level == .low ? 0 : 20) + (a.diff.isEmpty ? 0 : CGFloat(a.diff.count) * 15 - 18)
         }
         if store.offerConnect || store.replyTo != nil { return 150 }
+        if store.newAgent != nil { return 186 }
         if store.plan != nil { return planHeight }
         return store.catchUp.map { 92 + CGFloat(min($0.items.count, 4)) * 44 }
     }
@@ -100,12 +101,12 @@ final class NotchPanel: NSPanel {
     }
 
     // Key only while typing a reply; non-activating, so the app you're in stays frontmost.
-    override var canBecomeKey: Bool { store.replyTo != nil }
+    override var canBecomeKey: Bool { store.typing }
 
     private func checkHover() {
-        if store.replyTo != nil && !isKeyWindow { makeKey() }
+        if store.typing && !isKeyWindow { makeKey() }
         // Done replying: hand the keyboard back to the app you were in.
-        if store.replyTo == nil && isKeyWindow { NSWorkspace.shared.frontmostApplication?.activate() }
+        if !store.typing && isKeyWindow { NSWorkspace.shared.frontmostApplication?.activate() }
 
         let card = state.cardHeight(store) != nil
         let size = state.size(store)

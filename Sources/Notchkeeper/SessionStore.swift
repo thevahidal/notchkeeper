@@ -12,7 +12,10 @@ struct Session: Identifiable {
     let id: String
     var repo: String
     var title = ""
+    var cwd = ""
     var branch: String?
+    // Started with `claude --bg`: no terminal tab of its own, you attach to it.
+    var background = false
     var tty: String?
     var term: String?
     // The desktop app's question box from the latest turn.
@@ -69,6 +72,14 @@ struct CatchUp {
     let items: [Item]
 }
 
+struct NewAgent {
+    var folder: String
+    var prompt = ""
+    var worktree: Bool
+    var error: String?
+    var busy = false
+}
+
 struct PlanReview {
     let sessionId: String
     let repo: String
@@ -80,6 +91,14 @@ final class SessionStore: ObservableObject {
     @Published var approvals: [Approval] = []
     @Published var plan: PlanReview?
     @Published var catchUp: CatchUp?
+    @Published var newAgent: NewAgent?
+    // Follow-ups typed while an agent works, sent in order when its turn ends.
+    @Published var queued: [String: [String]] = [:]
+    // The approval whose "tell Claude" field is open, and what you've typed.
+    @Published var feedbackFor: UUID?
+    @Published var feedback = ""
+    // Short ids printed by `claude --bg` for agents started here.
+    private var launched: Set<String> = []
     private var awaySince: Date?
     @Published var sounds = UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true {
         didSet { UserDefaults.standard.set(sounds, forKey: "sounds") }
@@ -116,8 +135,46 @@ final class SessionStore: ObservableObject {
         sorted.first { !$0.seen && $0.state != .working }
     }
 
+    // Typing into the notch: the panel needs the keyboard.
+    var typing: Bool { replyTo != nil || newAgent != nil || approvals.contains { $0.id == feedbackFor } }
+
+    // Folders agents ran in lately, newest first, for the new agent picker.
+    var recentFolders: [String] {
+        let live = sessions.sorted { $0.lastSeen > $1.lastSeen }.map(\.cwd)
+        let saved = UserDefaults.standard.stringArray(forKey: "recentFolders") ?? []
+        var seen = Set<String>()
+        return (live + saved).filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(8).map { $0 }
+    }
+
+    func openNewAgent(in folder: String? = nil) {
+        let folder = folder ?? recentFolders.first ?? NSHomeDirectory()
+        newAgent = NewAgent(folder: folder, worktree: Self.gitBranch(folder) != nil)
+    }
+
+    func launchAgent() {
+        guard var draft = newAgent, !draft.busy else { return }
+        let prompt = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return }
+        draft.busy = true
+        draft.error = nil
+        newAgent = draft
+        ClaudeCLI.launch(prompt: prompt, in: draft.folder, worktree: draft.worktree && Self.gitBranch(draft.folder) != nil) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let id):
+                self.launched.insert(id)
+                let saved = UserDefaults.standard.stringArray(forKey: "recentFolders") ?? []
+                UserDefaults.standard.set(Array(([draft.folder] + saved.filter { $0 != draft.folder }).prefix(8)), forKey: "recentFolders")
+                self.newAgent = nil
+            case .failure(let failure):
+                self.newAgent?.busy = false
+                self.newAgent?.error = failure.message
+            }
+        }
+    }
+
     func jump(to session: Session) {
-        Jump.to(session)
+        if session.background { ClaudeCLI.attach(session.id) } else { Jump.to(session) }
         markSeen(session.id)
     }
 
@@ -133,7 +190,14 @@ final class SessionStore: ObservableObject {
         let pause = approval.risk.level == .high ? 1.5 : 0.7
         guard decision == "terminal" || Date().timeIntervalSince(approval.shown) > pause else { return }
         AuditLog.record(approval, decision)
-        if decision == "session" {
+        if decision == "deny-message" {
+            // A JSON string, so the hook can drop it into its output as is.
+            let message = feedback.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !message.isEmpty, let data = try? JSONSerialization.data(withJSONObject: message, options: .fragmentsAllowed) else { return }
+            approval.reply("deny-message " + String(decoding: data, as: UTF8.self))
+            feedbackFor = nil
+            feedback = ""
+        } else if decision == "session" {
             // One line of JSON built from Claude's own suggestions; the hook passes it back as is.
             guard let data = try? JSONSerialization.data(withJSONObject: approval.sessionRules) else { return }
             approval.reply("allow-session " + String(decoding: data, as: UTF8.self))
@@ -159,10 +223,27 @@ final class SessionStore: ObservableObject {
     }
 
     func sendReply() {
-        // Not typed (e.g. Claude has exited): take you to the tab instead.
-        if let session = replyTo, !draft.isEmpty, !Jump.reply(session, draft) { Jump.to(session) }
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let session = replyTo, !text.isEmpty {
+            if sessions.first(where: { $0.id == session.id })?.state == .working {
+                queued[session.id, default: []].append(text)
+            } else if !Jump.reply(session, text) {
+                // Not typed (e.g. Claude has exited): take you to the tab instead.
+                Jump.to(session)
+            }
+        }
         replyTo = nil
         draft = ""
+    }
+
+    // The turn ended without a question: send the next queued follow-up.
+    private func sendQueued(_ i: Int) {
+        guard let next = queued[sessions[i].id]?.first, Jump.reply(sessions[i], next) else { return }
+        queued[sessions[i].id]?.removeFirst()
+        if queued[sessions[i].id]?.isEmpty == true { queued[sessions[i].id] = nil }
+        sessions[i].state = .working
+        sessions[i].since = Date()
+        sessions[i].detail = "Queued: " + next
     }
 
     func apply(_ event: [String: Any], reply: EventServer.Reply? = nil) {
@@ -198,6 +279,7 @@ final class SessionStore: ObservableObject {
         }
 
         if name == "SessionEnd" {
+            queued[id] = nil
             sessions.removeAll { $0.id == id }
             return
         }
@@ -226,10 +308,19 @@ final class SessionStore: ObservableObject {
 
         let detail = describe(name, event)
         let isNew = !sessions.contains { $0.id == id }
-        if isNew || name == "Stop" { loadTitle(id, transcript: event["transcript_path"] as? String) }
+        if isNew || name == "Stop" { loadTitle(id, transcript: event["transcript_path"] as? String, turnEnded: name == "Stop") }
         if isNew || name == "Stop", let cwd = event["cwd"] as? String { loadBranch(id, cwd: cwd) }
         if !sessions.contains(where: { $0.id == id }) {
-            sessions.append(Session(id: id, repo: repo, state: state, detail: "", lastSeen: Date()))
+            var session = Session(id: id, repo: repo, state: state, detail: "", lastSeen: Date())
+            session.background = launched.contains(String(id.prefix(8)))
+            sessions.append(session)
+            // A terminal Ping can't name may be a background agent started elsewhere; ask Claude.
+            if !session.background, event["tty"] as? String != "??", (event["term"] as? String ?? "").isEmpty {
+                ClaudeCLI.backgroundSessions { [weak self] ids in
+                    guard ids.contains(id), let i = self?.sessions.firstIndex(where: { $0.id == id }) else { return }
+                    self?.sessions[i].background = true
+                }
+            }
         }
         let i = sessions.firstIndex { $0.id == id }!
         noteEdit(i, name, event)
@@ -239,6 +330,7 @@ final class SessionStore: ObservableObject {
         sessions[i].detail = detail ?? sessions[i].detail
         if state == .working { sessions[i].question = nil }
         sessions[i].lastSeen = Date()
+        if let cwd = event["cwd"] as? String { sessions[i].cwd = cwd }
         // Only notchkeeper-hook.sh sends these; "??" means no terminal, i.e. the desktop app.
         if let tty = event["tty"] as? String {
             // It ends up inside an AppleScript, so accept only the "ttys012" shape.
@@ -369,7 +461,7 @@ final class SessionStore: ObservableObject {
     }
 
     // Titles can change, so this is re-read on every Stop. Transcripts can be large, hence the background queue.
-    private func loadTitle(_ id: String, transcript path: String?) {
+    private func loadTitle(_ id: String, transcript path: String?, turnEnded: Bool) {
         // Events could name any file; only read Claude's own transcripts.
         let projects = NSHomeDirectory() + "/.claude/projects/"
         guard let path = (path as NSString?)?.standardizingPath, path.hasPrefix(projects), path.hasSuffix(".jsonl") else { return }
@@ -387,6 +479,7 @@ final class SessionStore: ObservableObject {
                     self.sessions[i].seen = false
                     self.chime(.needsYou)
                 }
+                if turnEnded && self.sessions[i].state == .yourTurn { self.sendQueued(i) }
             }
         }
     }
