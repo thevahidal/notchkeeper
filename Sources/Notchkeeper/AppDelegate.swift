@@ -12,19 +12,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu = StatusMenu(store: store)
 
         HookInstaller.refreshScripts()
-        store.offerConnect = !HookInstaller.isConnected && !UserDefaults.standard.bool(forKey: "declinedConnect")
+        store.renamedFromPing = HookInstaller.hasLegacyHooks
+        store.offerConnect = !HookInstaller.isConnected && (store.renamedFromPing || !UserDefaults.standard.bool(forKey: "declinedConnect"))
 
         // Private to you: whoever can reach the socket can answer approvals.
-        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ping")
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchkeeper")
         let privateDir: [FileAttributeKey: Any] = [.posixPermissions: 0o700]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: privateDir)
         try? FileManager.default.setAttributes(privateDir, ofItemAtPath: dir.path)
         do {
-            server = try EventServer(path: dir.appendingPathComponent("ping.sock").path) { [weak self] event, reply in
+            server = try EventServer(path: dir.appendingPathComponent("notchkeeper.sock").path) { [weak self] event, reply in
                 self?.store.apply(event, reply: reply)
             }
         } catch {
-            NSLog("Ping: could not start event server: \(error)")
+            NSLog("Notchkeeper: could not start event server: \(error)")
         }
 
         Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.store.checkPresence() }

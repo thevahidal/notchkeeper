@@ -437,7 +437,7 @@ struct ApprovalCard: View {
                     .lineLimit(approval.diff.isEmpty ? 2 : 1)
                     .truncationMode(.middle)
                 ForEach(Array(approval.diff.enumerated()), id: \.offset) { _, line in
-                    Text("\(line.sign) \(line.text)")
+                    Text(verbatim: "\(line.sign) \(line.text)")
                         .foregroundStyle(line.sign == "-" ? Palette.danger.opacity(0.9) : Palette.yourTurn[0])
                         .lineLimit(1)
                         .frame(height: 13, alignment: .leading)
@@ -755,15 +755,17 @@ struct ConnectCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Color.clear.frame(height: notchHeight - 6)
-            Text("Connect Ping to Claude Code?")
+            Text(store.renamedFromPing ? "Ping is now Notchkeeper" : "Connect Notchkeeper to Claude Code?")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-            Text(store.connectError ?? "Adds Ping's hooks to ~/.claude/settings.json (a backup is kept). Events stay on this Mac.")
+            Text(store.connectError ?? (store.renamedFromPing
+                ? "Swap Ping's hooks in ~/.claude/settings.json for Notchkeeper's (a backup is kept). Until then, agents won't show up."
+                : "Adds Notchkeeper's hooks to ~/.claude/settings.json (a backup is kept). Events stay on this Mac."))
                 .font(.system(size: 12))
                 .foregroundStyle(store.connectError == nil ? .white.opacity(0.6) : Palette.needsYou[0])
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
-                CardButton(title: "Connect", fill: Palette.yourTurn[0], text: .black) { store.connect() }
+                CardButton(title: store.renamedFromPing ? "Update" : "Connect", fill: Palette.yourTurn[0], text: .black) { store.connect() }
                 CardButton(title: "Not now", fill: .white.opacity(0.14), text: .white) { store.declineConnect() }
             }
             .padding(.top, 2)

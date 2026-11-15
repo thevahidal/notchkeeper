@@ -9,7 +9,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     init(store: SessionStore) {
         self.store = store
         super.init()
-        item.button?.image = NSImage(systemSymbolName: "wave.3.right", accessibilityDescription: "Ping")
+        item.button?.image = NSImage(systemSymbolName: "wave.3.right", accessibilityDescription: "Notchkeeper")
         item.menu = NSMenu()
         item.menu?.delegate = self
     }
@@ -26,7 +26,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         add(menu, "Approval Log…", #selector(openLog))
         add(menu, "Launch at Login", #selector(toggleLogin)).state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
-        add(menu, "Quit Ping", #selector(quit), key: "q")
+        add(menu, "Quit Notchkeeper", #selector(quit), key: "q")
     }
 
     @discardableResult
@@ -38,7 +38,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func toggleConnect() {
         if HookInstaller.isConnected {
-            do { try HookInstaller.disconnect() } catch { NSLog("Ping: \(error.localizedDescription)") }
+            do { try HookInstaller.disconnect() } catch { NSLog("Notchkeeper: \(error.localizedDescription)") }
         } else {
             store.connectError = nil
             store.offerConnect = true
@@ -53,7 +53,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                 try SMAppService.mainApp.register()
             }
         } catch {
-            NSLog("Ping: launch at login failed: \(error)")
+            NSLog("Notchkeeper: launch at login failed: \(error)")
         }
     }
 

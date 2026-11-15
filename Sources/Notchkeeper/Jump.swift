@@ -119,7 +119,7 @@ enum Jump {
     private static func run(_ script: String) {
         var error: NSDictionary?
         NSAppleScript(source: script)?.executeAndReturnError(&error)
-        if let error { NSLog("Ping terminal script failed: \(error)") }
+        if let error { NSLog("Notchkeeper terminal script failed: \(error)") }
     }
 
     private static func activate(_ bundleId: String) {

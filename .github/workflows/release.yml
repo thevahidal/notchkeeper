@@ -20,13 +20,13 @@ jobs:
       - name: Package
         run: |
           cd .build
-          ditto -c -k --keepParent Ping.app Ping.zip
-          # The disk image opens to Ping next to an Applications shortcut, for drag-to-install.
-          mkdir dmg && cp -R Ping.app dmg/ && ln -s /Applications dmg/Applications
-          hdiutil create -volname Ping -srcfolder dmg -ov -format UDZO Ping.dmg
-          shasum -a 256 Ping.zip Ping.dmg | tee checksums.txt
+          ditto -c -k --keepParent Notchkeeper.app Notchkeeper.zip
+          # The disk image opens to Notchkeeper next to an Applications shortcut, for drag-to-install.
+          mkdir dmg && cp -R Notchkeeper.app dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname Notchkeeper -srcfolder dmg -ov -format UDZO Notchkeeper.dmg
+          shasum -a 256 Notchkeeper.zip Notchkeeper.dmg | tee checksums.txt
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" .build/Ping.zip .build/Ping.dmg .build/checksums.txt --title "Ping $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" .build/Notchkeeper.zip .build/Notchkeeper.dmg .build/checksums.txt --title "Notchkeeper $GITHUB_REF_NAME" --generate-notes

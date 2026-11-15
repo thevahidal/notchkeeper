@@ -4,10 +4,10 @@ import AppKit
 if let flag = CommandLine.arguments.dropFirst().first, flag == "--connect" || flag == "--disconnect" {
     do {
         try flag == "--connect" ? HookInstaller.connect() : HookInstaller.disconnect()
-        print(flag == "--connect" ? "Ping connected to Claude Code." : "Ping disconnected from Claude Code.")
+        print(flag == "--connect" ? "Notchkeeper connected to Claude Code." : "Notchkeeper disconnected from Claude Code.")
         exit(0)
     } catch {
-        FileHandle.standardError.write(Data("Ping: \(error.localizedDescription)\n".utf8))
+        FileHandle.standardError.write(Data("Notchkeeper: \(error.localizedDescription)\n".utf8))
         exit(1)
     }
 }

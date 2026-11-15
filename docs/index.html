@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ping: Claude Code agents in your notch</title>
-<meta name="description" content="Ping turns your MacBook's notch into a live control tower for Claude Code. See every agent, approve commands and reply without switching windows. Free and open source.">
-<meta property="og:title" content="Ping: Claude Code agents in your notch">
+<title>Notchkeeper: Claude Code agents in your notch</title>
+<meta name="description" content="Notchkeeper turns your MacBook's notch into a live control tower for Claude Code. See every agent, approve commands and reply without switching windows. Free and open source.">
+<meta property="og:title" content="Notchkeeper: Claude Code agents in your notch">
 <meta property="og:description" content="Live status, approvals and replies for your Claude Code agents, right in the MacBook notch.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='black'/><circle cx='11' cy='16' r='3.5' fill='%23b0a8ed'/><circle cx='21' cy='16' r='3.5' fill='%23f09e26'/></svg>">
 <style>
@@ -229,12 +229,12 @@
 
 <nav>
   <div class="wrap">
-    <a class="logo" href="#"><i></i>Ping</a>
+    <a class="logo" href="#"><i></i>Notchkeeper</a>
     <div class="links">
       <a href="#features">Features</a>
       <a href="#install">Install</a>
     </div>
-    <a class="btn ghost" href="https://github.com/thevahidal/ping">★ GitHub</a>
+    <a class="btn ghost" href="https://github.com/thevahidal/notchkeeper">★ GitHub</a>
   </div>
 </nav>
 
@@ -243,10 +243,10 @@
   <div class="wrap">
     <span class="pill"><b></b>Free &amp; open source · for Claude Code</span>
     <h1>Your agents,<br><span class="grad">one glance away.</span></h1>
-    <p class="sub">Ping turns your MacBook's notch into a live control tower for Claude Code. See every agent, approve commands and reply, without leaving what you're doing.</p>
+    <p class="sub">Notchkeeper turns your MacBook's notch into a live control tower for Claude Code. See every agent, approve commands and reply, without leaving what you're doing.</p>
     <div class="ctas">
-      <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download for Mac</a>
-      <div class="copy"><code>brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping</code><button data-copy="brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping">Copy</button></div>
+      <a class="btn primary" href="https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg"> Download for Mac</a>
+      <div class="copy"><code>brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper</code><button data-copy="brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper">Copy</button></div>
     </div>
     <p class="meta">macOS 14+ · Apple silicon · Claude Code CLI &amp; desktop</p>
 
@@ -327,7 +327,7 @@
       <div class="tile"><div class="ic" style="--ic:var(--orange)">✓</div><h3>Approve safely</h3><p>Risky commands are flagged before you say yes, edits show the diff, and every answer is logged.</p></div>
       <div class="tile"><div class="ic" style="--ic:var(--orb)">↩</div><h3>Reply and jump</h3><p>Answer an agent without switching, or click to land in its tab. Ghostty, iTerm2, Terminal.</p></div>
     </div>
-    <p class="trust">Runs entirely on your Mac · fails safe to Claude's own prompt · <a href="https://github.com/thevahidal/ping#security">open source</a></p>
+    <p class="trust">Runs entirely on your Mac · fails safe to Claude's own prompt · <a href="https://github.com/thevahidal/notchkeeper#security">open source</a></p>
   </div>
 </section>
 
@@ -342,21 +342,21 @@
         <button data-tab="src">From source</button>
       </div>
       <div class="pane on" id="brew">
-        <pre>brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping</pre>
-        <p>Homebrew asks you to trust casks from third-party taps before it loads them; that's the first command. Uninstall with <code>brew uninstall --zap --cask ping</code>, which also disconnects Ping from Claude Code.</p>
+        <pre>brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper</pre>
+        <p>Homebrew asks you to trust casks from third-party taps before it loads them; that's the first command. Uninstall with <code>brew uninstall --zap --cask notchkeeper</code>, which also disconnects Notchkeeper from Claude Code.</p>
       </div>
       <div class="pane" id="dmg">
-        <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download Ping.dmg</a>
-        <p>Open it and drag Ping to Applications. All releases are on <a href="https://github.com/thevahidal/ping/releases" style="text-decoration:underline">GitHub</a>.</p>
+        <a class="btn primary" href="https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg"> Download Notchkeeper.dmg</a>
+        <p>Open it and drag Notchkeeper to Applications. All releases are on <a href="https://github.com/thevahidal/notchkeeper/releases" style="text-decoration:underline">GitHub</a>.</p>
       </div>
       <div class="pane" id="src">
-        <pre>git clone https://github.com/thevahidal/ping.git && cd ping
+        <pre>git clone https://github.com/thevahidal/notchkeeper.git && cd notchkeeper
 ./build.sh
-open .build/Ping.app</pre>
+open .build/Notchkeeper.app</pre>
         <p>Needs the Xcode Command Line Tools (<code>xcode-select --install</code>).</p>
       </div>
       <div class="pane on" style="padding-top:0">
-        <p class="first"><b>First open:</b> macOS asks you to allow Ping once. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>. Then Ping asks, in the notch, before it connects to Claude Code.</p>
+        <p class="first"><b>First open:</b> macOS asks you to allow Notchkeeper once. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>. Then Notchkeeper asks, in the notch, before it connects to Claude Code.</p>
       </div>
     </div>
   </div>
@@ -367,24 +367,24 @@ open .build/Ping.app</pre>
     <h2>Stop babysitting tabs.<br><span class="grad">Let the notch tell you.</span></h2>
     <p class="lead">Free and open source.</p>
     <div class="ctas">
-      <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download for Mac</a>
-      <a class="btn ghost" href="https://github.com/thevahidal/ping">View on GitHub</a>
+      <a class="btn primary" href="https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg"> Download for Mac</a>
+      <a class="btn ghost" href="https://github.com/thevahidal/notchkeeper">View on GitHub</a>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <a class="logo" href="#"><i></i>Ping</a>
+    <a class="logo" href="#"><i></i>Notchkeeper</a>
     <span class="sp"></span>
     <span>MIT licensed</span>
-    <a href="https://github.com/thevahidal/ping">GitHub</a>
+    <a href="https://github.com/thevahidal/notchkeeper">GitHub</a>
     <span>Not affiliated with Anthropic. Claude is a trademark of Anthropic.</span>
   </div>
 </footer>
 
 <script>
-  // The demo notch cycles through Ping's real states; hovering opens the session list.
+  // The demo notch cycles through Notchkeeper's real states; hovering opens the session list.
   const notch = document.getElementById('notch');
   const dots = document.getElementById('dots');
   const count = document.getElementById('count');

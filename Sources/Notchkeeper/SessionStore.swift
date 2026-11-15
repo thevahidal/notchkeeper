@@ -93,6 +93,8 @@ final class SessionStore: ObservableObject {
     // First launch: ask before touching ~/.claude/settings.json.
     @Published var offerConnect = false
     @Published var connectError: String?
+    // Hooks from the app's old name are in settings: the connect card offers to update them.
+    var renamedFromPing = false
     static let approvalTimeout: TimeInterval = 29
     // Descriptions from Agent tool calls, waiting for their SubagentStart (which has the id).
     private var pendingAgents: [String: [String]] = [:]
@@ -145,6 +147,7 @@ final class SessionStore: ObservableObject {
         do {
             try HookInstaller.connect()
             offerConnect = false
+            renamedFromPing = false
         } catch {
             connectError = error.localizedDescription
         }
@@ -236,7 +239,7 @@ final class SessionStore: ObservableObject {
         sessions[i].detail = detail ?? sessions[i].detail
         if state == .working { sessions[i].question = nil }
         sessions[i].lastSeen = Date()
-        // Only ping-hook.sh sends these; "??" means no terminal, i.e. the desktop app.
+        // Only notchkeeper-hook.sh sends these; "??" means no terminal, i.e. the desktop app.
         if let tty = event["tty"] as? String {
             // It ends up inside an AppleScript, so accept only the "ttys012" shape.
             sessions[i].tty = tty.range(of: "^ttys[0-9]+$", options: .regularExpression) != nil ? tty : nil

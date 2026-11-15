@@ -1,6 +1,6 @@
 #!/bin/sh
-# Sends the event to the Ping app. Silent and non-blocking when the app isn't running.
-# Adds the terminal Claude runs in ("??" for the desktop app), so Ping can jump to it.
+# Sends the event to the Notchkeeper app. Silent and non-blocking when the app isn't running.
+# Adds the terminal Claude runs in ("??" for the desktop app), so Notchkeeper can jump to it.
 # Hooks run detached from the terminal, so walk up to the first ancestor that has one.
 pid=$$
 tty="??"
@@ -12,5 +12,5 @@ done
 term=$(printf %s "$TERM_PROGRAM" | tr -cd 'A-Za-z0-9._-')
 tty=$(printf %s "$tty" | tr -cd 'A-Za-z0-9?')
 extra=$(printf ',"tty":"%s","term":"%s"}' "$tty" "$term")
-tr -d '\n' | { cat; echo; } | sed "s|}\$|$extra|" | nc -U -w 1 "$HOME/.ping/ping.sock" >/dev/null 2>&1
+tr -d '\n' | { cat; echo; } | sed "s|}\$|$extra|" | nc -U -w 1 "$HOME/.notchkeeper/notchkeeper.sock" >/dev/null 2>&1
 exit 0

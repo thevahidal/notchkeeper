@@ -16,7 +16,7 @@ func demoStore() -> SessionStore {
                 branch: "rate-limits"),
         session("2", "web", "Checkout redesign", .yourTurn, "Done: the new checkout passes all 48 tests.", ago: 140,
                 mode: "acceptEdits", branch: "checkout-v2", tty: nil),
-        session("3", "ping", "Polish the notch UI", .working, "Edit: NotchView.swift", ago: 420, mode: "auto", branch: "polish"),
+        session("3", "notchkeeper", "Polish the notch UI", .working, "Edit: NotchView.swift", ago: 420, mode: "auto", branch: "polish"),
         session("4", "infra", "Migrate CI to arm runners", .working, "Bash: terraform plan -out ci.tfplan", ago: 75,
                 branch: "arm-ci"),
     ]
@@ -116,7 +116,7 @@ struct Shot: View {
         ])
     }
     shot("plan", height: 380) { store, _ in
-        store.plan = PlanReview(sessionId: "3", repo: "ping", plan: """
+        store.plan = PlanReview(sessionId: "3", repo: "notchkeeper", plan: """
             # Polish the notch UI
             ## Collapsed
             - Name the agent that needs you next to the notch, instead of a bare count

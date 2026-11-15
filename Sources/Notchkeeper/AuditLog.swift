@@ -1,9 +1,9 @@
 import Foundation
 
-// Every answer given from the notch, one JSON line each, in ~/.ping/approvals.log. Local only.
+// Every answer given from the notch, one JSON line each, in ~/.notchkeeper/approvals.log. Local only.
 enum AuditLog {
     private static let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
-    static let path = home + "/.ping/approvals.log"
+    static let path = home + "/.notchkeeper/approvals.log"
 
     static func record(_ approval: Approval, _ decision: String) {
         let entry: [String: Any] = [

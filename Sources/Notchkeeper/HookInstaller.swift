@@ -1,15 +1,18 @@
 import Foundation
 
-// Adds or removes Ping's hooks in ~/.claude/settings.json, which the Claude Code CLI and desktop app share.
-// Only Ping's own entries are touched, and a backup is written next to the file first.
+// Adds or removes Notchkeeper's hooks in ~/.claude/settings.json, which the Claude Code CLI and desktop app share.
+// Only Notchkeeper's own entries are touched, and a backup is written next to the file first.
 enum HookInstaller {
     // $HOME first, like the hook scripts, so a test with a fake HOME can't touch the real settings.
     private static let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
     static let settingsPath = home + "/.claude/settings.json"
-    static let hooksDir = home + "/.ping/hooks"
+    static let hooksDir = home + "/.notchkeeper/hooks"
     // How settings.json refers to the scripts; Claude expands the ~.
-    private static let hooksRef = "~/.ping/hooks/"
-    private static let scripts = ["ping-hook.sh", "ping-approve.sh"]
+    private static let hooksRef = "~/.notchkeeper/hooks/"
+    private static let scripts = ["notchkeeper-hook.sh", "notchkeeper-approve.sh"]
+    // From before the rename; connecting or disconnecting removes them too.
+    private static let legacyScripts = ["ping-hook.sh", "ping-approve.sh"]
+    private static let legacyDir = home + "/.ping"
     private static let toolEvents = ["PreToolUse", "PostToolUse"]
     private static let otherEvents = ["UserPromptSubmit", "Notification", "Stop", "SessionEnd", "SubagentStart", "SubagentStop"]
 
@@ -17,12 +20,20 @@ enum HookInstaller {
         let errorDescription: String?
     }
 
-    static var isConnected: Bool {
+    private static var commands: [String] {
         let hooks = (try? load())?["hooks"] as? [String: Any] ?? [:]
-        let commands = hooks.values.flatMap { groups in
+        return hooks.values.flatMap { groups in
             (groups as? [[String: Any]] ?? []).flatMap { ($0["hooks"] as? [[String: Any]] ?? []).compactMap { $0["command"] as? String } }
         }
-        return commands.contains(hooksRef + "ping-approve.sh") && FileManager.default.fileExists(atPath: hooksDir + "/ping-hook.sh")
+    }
+
+    static var isConnected: Bool {
+        commands.contains(hooksRef + "notchkeeper-approve.sh") && FileManager.default.fileExists(atPath: hooksDir + "/notchkeeper-hook.sh")
+    }
+
+    // Still wired up under the app's old name, Ping.
+    static var hasLegacyHooks: Bool {
+        commands.contains { $0.hasSuffix("/ping-approve.sh") }
     }
 
     static func connect() throws {
@@ -35,16 +46,26 @@ enum HookInstaller {
                 if let matcher { group["matcher"] = matcher }
                 hooks[event] = (hooks[event] as? [[String: Any]] ?? []) + [group]
             }
-            toolEvents.forEach { add($0, "ping-hook.sh", matcher: "*") }
-            otherEvents.forEach { add($0, "ping-hook.sh") }
+            toolEvents.forEach { add($0, "notchkeeper-hook.sh", matcher: "*") }
+            otherEvents.forEach { add($0, "notchkeeper-hook.sh") }
             // Longer than the script's own 30s wait, so Claude never kills it mid-answer.
-            add("PermissionRequest", "ping-approve.sh", matcher: "*", timeout: 40)
+            add("PermissionRequest", "notchkeeper-approve.sh", matcher: "*", timeout: 40)
         }
+        removeLegacyFiles()
     }
 
     static func disconnect() throws {
         try edit { _ in }
         try? FileManager.default.removeItem(atPath: hooksDir)
+        removeLegacyFiles()
+    }
+
+    // Ping's old hook copies and socket; the folder goes too once it's empty.
+    private static func removeLegacyFiles() {
+        let fm = FileManager.default
+        try? fm.removeItem(atPath: legacyDir + "/hooks")
+        try? fm.removeItem(atPath: legacyDir + "/ping.sock")
+        if (try? fm.contentsOfDirectory(atPath: legacyDir))?.isEmpty == true { try? fm.removeItem(atPath: legacyDir) }
     }
 
     // A new version of the app may ship new scripts; keep an existing install's copies current.
@@ -71,12 +92,12 @@ enum HookInstaller {
         guard let data = FileManager.default.contents(atPath: settingsPath) else { return [:] }
         // Never overwrite a settings file we can't read; that would lose the user's settings.
         guard let settings = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw Failure(errorDescription: "~/.claude/settings.json isn't valid JSON, so Ping left it alone")
+            throw Failure(errorDescription: "~/.claude/settings.json isn't valid JSON, so Notchkeeper left it alone")
         }
         return settings
     }
 
-    // Removes Ping's entries, lets `change` add new ones, then writes the file back.
+    // Removes Notchkeeper's entries, lets `change` add new ones, then writes the file back.
     private static func edit(_ change: (inout [String: Any]) -> Void) throws {
         var settings = try load()
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
@@ -85,7 +106,7 @@ enum HookInstaller {
                 var group = group
                 let kept = (group["hooks"] as? [[String: Any]] ?? []).filter { hook in
                     let command = hook["command"] as? String ?? ""
-                    return !scripts.contains { command.hasSuffix("/" + $0) }
+                    return !(scripts + legacyScripts).contains { command.hasSuffix("/" + $0) }
                 }
                 group["hooks"] = kept
                 return kept.isEmpty ? nil : group
@@ -98,7 +119,7 @@ enum HookInstaller {
         let fm = FileManager.default
         if fm.fileExists(atPath: settingsPath) {
             let stamp = String(Int(Date().timeIntervalSince1970 * 1000))
-            try fm.copyItem(atPath: settingsPath, toPath: settingsPath + ".ping-backup-" + stamp)
+            try fm.copyItem(atPath: settingsPath, toPath: settingsPath + ".notchkeeper-backup-" + stamp)
         }
         try fm.createDirectory(atPath: (settingsPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
