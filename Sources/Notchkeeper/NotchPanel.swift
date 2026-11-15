@@ -43,10 +43,12 @@ final class NotchState: ObservableObject {
         }
         if store.offerConnect { return 150 }
         // With a transcript, the reply card shows the conversation above the field.
-        if let session = store.replyTo { return store.sessions.first { $0.id == session.id }?.transcript == nil ? 150 : replyHeight }
-        if store.newAgent != nil { return 186 }
+        if let session = store.replyTo {
+            return (store.sessions.first { $0.id == session.id }?.transcript == nil ? 150 : replyHeight) + (store.pastedImages.isEmpty ? 0 : 30)
+        }
+        if let draft = store.newAgent { return 186 + (draft.images.isEmpty ? 0 : 30) }
         if store.plan != nil { return planHeight }
-        return store.catchUp.map { 92 + CGFloat(min($0.items.count, 4)) * 44 }
+        return store.catchUp.map { 66 + CGFloat(min($0.items.count, 4)) * 44 }
     }
 
     func earWidth(_ store: SessionStore) -> CGFloat {
@@ -78,10 +80,10 @@ final class NotchPanel: NSPanel {
     private let state = NotchState()
     private var hoverTimer: Timer?
     private var hadCard = false
-    private lazy var hotkeys = Hotkeys { [weak self] allow in
+    private lazy var hotkeys = Hotkeys(onKey: { [weak self] allow in
         guard let store = self?.store, let approval = store.approvals.first else { return }
         store.answer(approval, allow ? "allow" : "deny")
-    }
+    }, onMarkup: { [weak self] in self?.store.markUpScreen() })
 
     init(store: SessionStore) {
         self.store = store
@@ -162,6 +164,7 @@ final class NotchPanel: NSPanel {
         }
         hadCard = card
         hotkeys.enabled = !store.approvals.isEmpty
+        hotkeys.markup = store.markupHotkey
         if inside != state.expanded {
             state.expanded = inside
             if !inside { state.filter = nil }

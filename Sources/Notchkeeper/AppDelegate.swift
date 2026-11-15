@@ -21,6 +21,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HookInstaller.refreshScripts()
         Plugins.retireOldExamples()
         store.restore()
+        try? FileManager.default.removeItem(at: SessionStore.pasteDir)
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let paste = event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command && event.charactersIgnoringModifiers == "v"
+            return paste && self?.store.pasteImage() == true ? nil : event
+        }
         // Written a second after the last change, not on every event.
         saver = store.$sessions.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] _ in self?.store.save() }
         store.renamedFromPing = HookInstaller.hasLegacyHooks

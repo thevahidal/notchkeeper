@@ -122,6 +122,7 @@ struct NewAgent {
     var agent = Agent(rawValue: UserDefaults.standard.string(forKey: "newAgentKind") ?? "") ?? .claude
     var prompt = ""
     var worktree: Bool
+    var images: [URL] = []
     var error: String?
     var busy = false
 }
@@ -157,13 +158,20 @@ final class SessionStore: ObservableObject {
     @Published var quiet = UserDefaults.standard.bool(forKey: "quiet") {
         didSet { UserDefaults.standard.set(quiet, forKey: "quiet") }
     }
+    @Published var markupHotkey = UserDefaults.standard.object(forKey: "markupHotkey") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(markupHotkey, forKey: "markupHotkey") }
+    }
     // Minutes idle before the "While you were away" card; 0 turns it off.
     @Published var awayMinutes = UserDefaults.standard.object(forKey: "awayMinutes") as? Int ?? 10 {
         didSet { UserDefaults.standard.set(awayMinutes, forKey: "awayMinutes") }
     }
     @Published var replyTo: Session? {
-        didSet { if replyTo?.id != oldValue?.id { loadChat() } }
+        didSet { if replyTo?.id != oldValue?.id { loadChat(); pastedImages = [] } }
     }
+    // Images pasted into the reply field; their paths are sent at the end of the message.
+    @Published var pastedImages: [URL] = []
+    static let pasteDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("Notchkeeper/Pasted")
     // The recent conversation of the session you're replying to.
     @Published var chat: [ChatLine] = []
     @Published var draft = ""
@@ -217,7 +225,7 @@ final class SessionStore: ObservableObject {
 
     func openNewAgent(in folder: String? = nil) {
         let folder = folder ?? recentFolders.first ?? NSHomeDirectory()
-        newAgent = NewAgent(folder: folder, worktree: Self.gitBranch(folder) != nil)
+        newAgent = NewAgent(folder: folder, worktree: Self.gitBranch(folder) != nil, images: newAgent?.images ?? [])
         TmuxAgents.choices { [weak self] choices in
             self?.agentChoices = choices
             if let agent = self?.newAgent?.agent, !choices.contains(agent) { self?.newAgent?.agent = .claude }
@@ -226,8 +234,9 @@ final class SessionStore: ObservableObject {
 
     func launchAgent() {
         guard var draft = newAgent, !draft.busy else { return }
-        let prompt = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !prompt.isEmpty else { return }
+        let typed = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return }
+        let prompt = ([typed] + draft.images.map(\.path)).joined(separator: " ")
         draft.busy = true
         draft.error = nil
         newAgent = draft
@@ -315,8 +324,36 @@ final class SessionStore: ObservableObject {
         UserDefaults.standard.set(true, forKey: "declinedConnect")
     }
 
+    // ⌘V with an image on the clipboard: save it as a PNG. Returns false to let the field paste text.
+    func pasteImage() -> Bool {
+        let board = NSPasteboard.general
+        guard replyTo != nil, board.string(forType: .string) == nil,
+              let tiff = NSImage(pasteboard: board)?.tiffRepresentation,
+              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return false }
+        let url = Self.pasteDir.appendingPathComponent(UUID().uuidString + ".png")
+        try? FileManager.default.createDirectory(at: Self.pasteDir, withIntermediateDirectories: true)
+        guard (try? png.write(to: url)) != nil else { return false }
+        pastedImages.append(url)
+        return true
+    }
+
+    // Draw on the screen, then ask a new background agent about it.
+    func markUpScreen() {
+        Markup.start { [weak self] url in
+            self?.newAgent = nil
+            self?.openNewAgent()
+            self?.newAgent?.images = [url]
+        }
+    }
+
+    func removePastedImage(_ url: URL) {
+        pastedImages.removeAll { $0 == url }
+        try? FileManager.default.removeItem(at: url)
+    }
+
     func sendReply() {
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = ([draft.trimmingCharacters(in: .whitespacesAndNewlines)] + pastedImages.map(\.path))
+            .filter { !$0.isEmpty }.joined(separator: " ")
         if let session = replyTo, !text.isEmpty {
             if sessions.first(where: { $0.id == session.id })?.state == .working {
                 queued[session.id, default: []].append(text)

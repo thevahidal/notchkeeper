@@ -30,6 +30,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         menu.addItem(.separator())
         add(menu, "New Background Agent…", #selector(newAgent))
+        add(menu, "Mark Up Screen…", #selector(markUp))
         menu.addItem(.separator())
         add(menu, "Sounds", #selector(toggleSounds)).state = store.sounds ? .on : .off
         add(menu, "Quiet Mode", #selector(toggleQuiet)).state = store.quiet ? .on : .off
@@ -88,6 +89,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func newAgent() { store.openNewAgent() }
+    @objc private func markUp() { store.markUpScreen() }
     // Plugins submenu: one checkable row per plugin found, plus the folder.
     private func pluginsItem() -> NSMenuItem {
         let item = NSMenuItem(title: "Plugins", action: nil, keyEquivalent: "")

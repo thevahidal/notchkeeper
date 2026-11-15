@@ -1034,6 +1034,10 @@ struct NewAgentCard: View {
                 .foregroundStyle(.white.opacity(isRepo ? 0.8 : 0.35))
                 Spacer()
             }
+            ImageChips(images: draft.images) { url in
+                store.newAgent?.images.removeAll { $0 == url }
+                try? FileManager.default.removeItem(at: url)
+            }
             TextField("What should it do?", text: Binding(get: { draft.prompt }, set: { store.newAgent?.prompt = $0 }))
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
@@ -1063,6 +1067,30 @@ struct NewAgentCard: View {
         panel.directoryURL = URL(fileURLWithPath: store.newAgent?.folder ?? NSHomeDirectory())
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url { store.openNewAgent(in: url.path) }
+    }
+}
+
+// Attached images, each removable with a click.
+struct ImageChips: View {
+    let images: [URL]
+    let remove: (URL) -> Void
+
+    var body: some View {
+        if !images.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(Array(images.enumerated()), id: \.element) { i, url in
+                    Button { remove(url) } label: {
+                        Text("Image \(i + 1)  ×")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .padding(.horizontal, 8)
+                            .frame(height: 20)
+                            .background(.white.opacity(0.12), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 }
 
@@ -1097,6 +1125,7 @@ struct ReplyCard: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(2)
+            ImageChips(images: store.pastedImages) { store.removePastedImage($0) }
             TextField(working ? "Queue a follow-up…" : "Reply…", text: $store.draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))

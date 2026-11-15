@@ -125,6 +125,10 @@ struct SettingsView: View {
                     Text("List agent worktrees as folders")
                     Text("In the new agent's folder list. Off lists only your projects, not the worktrees agents made in them.")
                 }
+                Toggle(isOn: $store.markupHotkey) {
+                    Text("Mark up the screen with ⌃⌥D")
+                    Text("Freezes the screen so you can draw on something, then asks a new background agent about it.")
+                }
                 Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.launchAtLogin = $0 }))
             }
 

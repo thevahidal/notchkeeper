@@ -42,6 +42,8 @@ Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch a
 - **Chat history when you reply.** The reply card shows the last few turns of the conversation (Claude Code sessions), so you remember what you were talking about before you answer.
 - **Reply without switching** (Ghostty, iTerm2, Terminal). Type a reply in the notch; Notchkeeper sends it to that agent's terminal.
 - **Jump to the agent.** Click a row to focus its exact tab in Ghostty, iTerm2 or Terminal, bring Warp, WezTerm or VS Code forward, or bring the Claude desktop app forward.
+- **Paste images.** ⌘V an image into a reply and the agent gets it as a file path.
+- **Mark up the screen.** ⌃⌥D freezes the screen; draw on what you mean, press ↩, and ask a new background agent about it. Needs Screen Recording permission the first time.
 - **Subagents.** Running subagents show as indented lines under their parent.
 - **Seen state.** Rows you've looked at go dim and move to the bottom.
 - **Works in full screen** and on every Space. On a Mac or display without a notch, Notchkeeper hangs a small bar from the middle of the menu bar. Turn on **Show on Active Display** in the menu bar to have it follow the screen you're working on, e.g. an external monitor.
