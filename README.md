@@ -2,6 +2,8 @@
 
 Your Claude Code agents, one glance away. Ping lives in your MacBook's notch and shows what every agent is doing, which one is stuck waiting on you, and lets you answer without switching windows.
 
+**[thevahidal.github.io/ping](https://thevahidal.github.io/ping/)** · [Download](https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg) · `brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping`
+
 <!-- screenshot: notch collapsed and expanded -->
 
 ## What it does
