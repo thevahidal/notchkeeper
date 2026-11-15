@@ -140,3 +140,32 @@ final class WorkScanner: ObservableObject {
         }
     }
 }
+
+// Every repo the given folders belong to, scanned from its main checkout so all its worktrees show.
+final class AllWorkScanner: ObservableObject {
+    struct Repo: Equatable, Identifiable {
+        let root: String
+        let work: Work
+        var id: String { root }
+    }
+    @Published private(set) var repos: [Repo] = []
+
+    func load(_ folders: [String]) {
+        let log = ActivityLog.today()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            var roots: [String] = []
+            for folder in folders {
+                if let root = Self.mainCheckout(folder), !roots.contains(root) { roots.append(root) }
+            }
+            let repos = roots.compactMap { root in Work.scan(root, log: log).map { Repo(root: root, work: $0) } }
+                .filter { !$0.work.worktrees.isEmpty }
+            DispatchQueue.main.async { if self?.repos != repos { self?.repos = repos } }
+        }
+    }
+
+    private static func mainCheckout(_ folder: String) -> String? {
+        let (status, out) = ClaudeCLI.run("/usr/bin/git", ["--no-optional-locks", "-C", folder, "rev-parse", "--path-format=absolute", "--git-common-dir"])
+        let common = out.trimmingCharacters(in: .whitespacesAndNewlines)
+        return status == 0 && common.hasSuffix("/.git") ? String(common.dropLast(5)) : nil
+    }
+}

@@ -5,6 +5,7 @@ struct OfficeView: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject var store: SessionStore
     @StateObject private var scanner = WorkScanner()
+    @StateObject private var all = AllWorkScanner()
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -14,6 +15,7 @@ struct OfficeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     today(entries)
+                    allWorktrees
                     section("Desks").padding(.top, 4)
                     if desks.isEmpty {
                         Text("A desk appears when an agent or watch starts work in a project.").foregroundStyle(.secondary)
@@ -34,8 +36,46 @@ struct OfficeView: View {
                 }
                 .padding(20)
                 .task(id: "\(selected ?? "")|\(context.date)") { scanner.load(selected.flatMap(folder)) }
+                .task(id: context.date) { all.load(store.knownFolders) }
             }
         }
+    }
+
+    @ViewBuilder
+    private var allWorktrees: some View {
+        if !all.repos.isEmpty {
+            section("All worktrees").padding(.top, 4)
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(all.repos) { repo in
+                    group((repo.root as NSString).lastPathComponent) {
+                        ForEach(repo.work.worktrees) { tree in
+                            HStack(alignment: .firstTextBaseline) {
+                                line((tree.path as NSString).lastPathComponent, state(tree))
+                                Spacer()
+                                Button("Open") { open(tree.path) }.controlSize(.small)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private func state(_ tree: Work.Worktree) -> String {
+        var parts: [String] = []
+        if !tree.uncommitted.isEmpty { parts.append(count(tree.uncommitted.count, "file") + " not committed") }
+        if !tree.ahead.isEmpty { parts.append(count(tree.ahead.count, "commit") + " not merged") }
+        if parts.isEmpty { parts.append("Safe to remove") }
+        if tree.locked { parts.append("locked by a Claude session") }
+        return parts.joined(separator: " · ")
+    }
+
+    // In the terminal your agents use, else Finder.
+    private func open(_ path: String) {
+        if let session = store.sessions.first(where: { $0.term != nil }) { return Jump.open(folder: path, for: session) }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
     private func today(_ entries: [ActivityLog.Entry]) -> some View {
