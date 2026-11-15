@@ -32,11 +32,12 @@ Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch a
 - **Questions.** When a turn ends with a question, the row turns orange and shows the question.
 - **Sounds.** A ping when an agent needs you, a soft pop when one finishes, and a reminder every few minutes if you've stepped away while one is stuck. Silent for the tab you're already looking at.
 - **Quiet mode.** The notch stays dark while agents work and lights up only when one needs you. Toggle it, and sounds, from the expanded notch or the menu bar.
+- **Chat history when you reply.** The reply card shows the last few turns of the conversation (Claude Code sessions), so you remember what you were talking about before you answer.
 - **Reply without switching** (Ghostty, iTerm2, Terminal). Type a reply in the notch; Notchkeeper sends it to that agent's terminal.
 - **Jump to the agent.** Click a row to focus its exact tab in Ghostty, iTerm2 or Terminal, bring Warp, WezTerm or VS Code forward, or bring the Claude desktop app forward.
 - **Subagents.** Running subagents show as indented lines under their parent.
 - **Seen state.** Rows you've looked at go dim and move to the bottom.
-- **Works in full screen** and on every Space. On a Mac or display without a notch, Notchkeeper hangs a small bar from the middle of the menu bar.
+- **Works in full screen** and on every Space. On a Mac or display without a notch, Notchkeeper hangs a small bar from the middle of the menu bar. Turn on **Show on Active Display** in the menu bar to have it follow the screen you're working on, e.g. an external monitor.
 
 ### Where each feature works
 
@@ -104,6 +105,15 @@ Otherwise:
 1. Menu bar icon → uncheck each agent under **Agents**. This removes only Notchkeeper's entries from that agent's settings.
 2. **Quit Notchkeeper**, then delete `Notchkeeper.app` and `~/.notchkeeper`.
 
+## Extend it
+
+- **Anything in the notch.** `~/.notchkeeper/bin/notchkeeper run -- npm run build` shows the build while it runs and pings when it's done or fails. `notchkeeper notify --id … --title … --state done --url …` posts anything else: deploys, CI, long scripts.
+- **Plugins.** Small scripts that run when an agent needs you, finishes or asks for approval. Menu bar → Plugins → **Add Example Plugins** gives you three, all off until you turn them on:
+  - **Say it**: speaks "api needs you".
+  - **Journal**: a daily Markdown log of what your agents did, in `~/.notchkeeper/journal/`.
+  - **Phone (ntfy)**: pushes "needs you" and "done" to your phone and watch through [ntfy](https://ntfy.sh). Put a hard-to-guess topic in `topic.txt`. Only the agent's title leaves your Mac.
+- **Build your own** on the socket protocol: see [PROTOCOL.md](PROTOCOL.md). It's also the starting point for a Linux client.
+
 ## How it works
 
 ```
@@ -140,6 +150,8 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 
 **Input handling**
 - Pane ids from the hook (tmux, WezTerm, kitty) must match their exact shape before Notchkeeper uses them, and `tmux`, `wezterm` and `kitten` run with arguments, never through a shell. Replies are sent as literal text.
+- Plugins are off until you turn each one on. A plugin's script must sit inside its own folder, runs without a shell, gets 10 seconds, and receives only the event JSON. A plugin can send data off your Mac (the ntfy example does, by design), so turn on only what you trust.
+- `notchkeeper notify` links open only if they're `http(s)`.
 - Starting an agent runs the `claude` executable directly with your prompt as an argument, never through a shell, so nothing in the prompt can run as a command.
 - Event fields are treated as untrusted. The terminal id must look like `ttys012` before it reaches an AppleScript. Notchkeeper reads the git branch straight from `.git/HEAD`; it never runs git. The transcript path must be a `.jsonl` file under `~/.claude/projects/`. Messages over 1 MB are dropped.
 - A reply is typed into a terminal only if `claude` is the program currently running there. If Claude has exited, the tab is a plain shell and pressing Enter would run your text as a command, so Notchkeeper jumps to the tab instead.
@@ -153,6 +165,8 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 ```
 Sources/Notchkeeper/  the app (SwiftUI + AppKit, built with plain swiftc)
 hooks/                the hook scripts, bundled into the app
+plugins/              example plugins, bundled into the app
+PROTOCOL.md           the socket protocol, for plugins, items and ports
 assets/               the app icon
 build.sh              builds .build/Notchkeeper.app
 tools/                renders the icon (icon.sh) and the screenshots (screenshots.sh) from the app's own views

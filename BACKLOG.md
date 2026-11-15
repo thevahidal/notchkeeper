@@ -30,6 +30,10 @@ Notchkeeper (formerly Ping).
 - **Codex and Gemini CLI.** Menu bar → Agents connects each (`~/.codex/hooks.json`, `~/.gemini/settings.json`). Codex approvals work through the same hook; Gemini is status only (its hooks can't answer approvals). Installer tested in a scratch home; event mapping tested with sample events. Not tested against the live CLIs (Codex needs its interactive /hooks approval; Gemini isn't signed in here).
 - **tmux, WezTerm, kitty.** The hook reports the pane; jump and reply go to the exact pane. tmux tested end to end with a stand-in agent; WezTerm and kitty untested (not installed). Unknown terminals come forward by the bundle id in the hook's environment.
 - **Never lose track.** Waiting agents kept 24h, sessions saved to `~/.notchkeeper/sessions.json` and restored with a catch-up card, snooze (15m / 1h / tomorrow 9), nudges every 10 min (3 when away). Tested in a scratch home.
+- **Chat history in the reply card** (Claude transcripts, last ~14 lines, tail-read).
+- **Show on Active Display**: follows the frontmost window's screen; untested on multiple displays (only one here).
+- **Items**: `notchkeeper notify` / `notchkeeper run` over the socket. Tested end to end against the running app.
+- **Plugins**: `~/.notchkeeper/plugins/*/plugin.json`, events needs-you / done / approval; examples say, journal, ntfy. Path escape rejected; journal and ntfy (local fake server) tested.
 - **App icon** (`tools/icon.sh`) and **screenshots** rendered from the real views (`tools/screenshots.sh`).
 
 ## Open
@@ -41,6 +45,10 @@ Notchkeeper (formerly Ping).
 
 
 - **Usage limits.** People watch their 5-hour and weekly limits closely, but only the statusline input (`rate_limits`) or the account token expose them. Revisit if a hook starts carrying them.
+
+- **Native phone companion.** Today: ntfy plugin (notifications only). A real iPhone / Watch app with approvals needs Xcode, an Apple Developer account, and a relay between phone and Mac; approving from a phone means the request leaves the Mac, so it needs end-to-end encryption and pairing. Design before building.
+- **Linux.** Hooks and protocol are portable (PROTOCOL.md). Needs a client: GNOME Shell extension or Waybar module listening on the socket, plus Linux terminal jumps (tmux works as is).
+- **Chat history for Codex and Gemini** (different transcript formats).
 
 ## Ideas
 - Deny with feedback: a text field whose message goes back to Claude.
