@@ -387,18 +387,18 @@ struct StateBadge: View {
 
     var body: some View {
         let color = Palette.orb(session.state).opacity(session.seen ? 0.35 : 1)
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .topLeading) {
             AppIcon(session: session)
                 .frame(width: 26, height: 26)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1))
-                .overlay(alignment: .topLeading) {
-                    if !session.isItem { EnvIcon(session: session).offset(x: -4, y: -4) }
+                .overlay(alignment: .bottomTrailing) {
+                    if !session.isItem && session.tty != nil { EnvIcon(session: session).offset(x: 4, y: 4) }
                 }
             Orb(state: session.state, seen: session.seen, size: 8)
                 .padding(2)
                 .background(.black, in: Circle())
-                .offset(x: 4, y: 4)
+                .offset(x: -4, y: -4)
         }
     }
 }
@@ -788,16 +788,14 @@ struct AppIcon: View {
     }
 }
 
-// Where the agent runs: the terminal's icon for CLI sessions, a window for the desktop app.
+// The terminal a CLI session runs in.
 struct EnvIcon: View {
     let session: Session
 
     var body: some View {
-        let desktop = session.tty == nil
-        (desktop ? Image(systemName: "macwindow") : Jump.appId(session).flatMap(AppIcon.icon) ?? Image(systemName: "terminal"))
+        (Jump.appId(session).flatMap(AppIcon.icon) ?? Image(systemName: "terminal"))
             .resizable()
             .scaledToFit()
-            .padding(desktop ? 2 : 0)
             .frame(width: 13, height: 13)
             .foregroundStyle(.white.opacity(0.8))
             .background(.black, in: RoundedRectangle(cornerRadius: 3))
