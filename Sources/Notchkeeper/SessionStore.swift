@@ -327,16 +327,16 @@ final class SessionStore: ObservableObject {
         UserDefaults.standard.set(true, forKey: "declinedConnect")
     }
 
-    // ⌘V with an image on the clipboard: save it as a PNG. Returns false to let the field paste text.
+    // ⌘V with an image on the clipboard, in a reply or new agent: save it as a PNG. Returns false to let the field paste text.
     func pasteImage() -> Bool {
         let board = NSPasteboard.general
-        guard replyTo != nil, board.string(forType: .string) == nil,
+        guard replyTo != nil || newAgent != nil, board.string(forType: .string) == nil,
               let tiff = NSImage(pasteboard: board)?.tiffRepresentation,
               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return false }
         let url = Self.pasteDir.appendingPathComponent(UUID().uuidString + ".png")
         try? FileManager.default.createDirectory(at: Self.pasteDir, withIntermediateDirectories: true)
         guard (try? png.write(to: url)) != nil else { return false }
-        pastedImages.append(url)
+        if newAgent != nil { newAgent?.images.append(url) } else { pastedImages.append(url) }
         return true
     }
 
