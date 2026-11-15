@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Notchkeeper Plugins</title>
+<meta name="description" content="Plugins for Notchkeeper: small scripts that run when an agent needs you, finishes or asks for approval.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='black'/><circle cx='11' cy='16' r='3.5' fill='%23b0a8ed'/><circle cx='21' cy='16' r='3.5' fill='%23f09e26'/></svg>">
+<style>
+  :root {
+    --bg: #07070a;
+    --panel: #0f0f14;
+    --line: rgba(255,255,255,.08);
+    --text: #f4f4f6;
+    --dim: rgba(244,244,246,.62);
+    --faint: rgba(244,244,246,.38);
+    --orb: rgb(176,168,237);
+    --teal: rgb(92,201,166);
+    --orange: rgb(240,158,38);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  nav { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); background: rgba(7,7,10,.6); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; height: 60px; gap: 28px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
+  .logo i { width: 26px; height: 26px; border-radius: 8px; background: #000; border: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; place-items: center; padding: 0 4px; }
+  .logo i::before, .logo i::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--orb); box-shadow: 0 0 6px var(--orb); }
+  .logo i::after { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  nav .links { display: flex; gap: 24px; margin-left: auto; font-size: 14px; color: var(--dim); }
+  nav .links a:hover, nav .links a.on { color: var(--text); }
+  .btn { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px; font-weight: 600; font-size: 14px; white-space: nowrap; background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+  .btn:hover { background: rgba(255,255,255,.1); }
+
+  header { padding: 88px 0 8px; }
+  .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); }
+  h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.05; letter-spacing: -.04em; font-weight: 800; margin: 12px 0 14px; }
+  h2 { font-size: clamp(26px, 4vw, 36px); letter-spacing: -.03em; font-weight: 800; margin: 12px 0 12px; }
+  .lead { color: var(--dim); font-size: 18px; max-width: 640px; }
+
+  .group { margin-top: 56px; }
+  .label { display: flex; align-items: baseline; gap: 10px; font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  .label .n { color: var(--faint); letter-spacing: 0; }
+  .label .why { margin-left: auto; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--faint); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+
+  .card { display: flex; flex-direction: column; gap: 10px; padding: 20px; border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border: 1px solid var(--line); min-width: 0; }
+  .card.community { background: none; border-style: dashed; border-color: rgba(255,255,255,.16); }
+  .head { display: flex; align-items: center; gap: 12px; }
+  .mono { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+  .head h3 { font-size: 16px; letter-spacing: -.01em; line-height: 1.2; }
+  .by { font-size: 12.5px; color: var(--faint); }
+  .card p { font-size: 14px; color: var(--dim); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  .chips span { padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,.05); color: var(--dim); }
+  .chips .local { color: var(--teal); background: none; padding-left: 0; }
+  .chips .off { color: var(--orange); background: none; padding-left: 0; }
+  .foot { margin-top: auto; padding-top: 6px; display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--faint); }
+  .foot a { color: var(--dim); }
+  .foot a:hover { color: var(--text); }
+  .foot .sp { flex: 1; }
+  .act { height: 30px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--text); color: #000; font: 600 12.5px/1 inherit; cursor: pointer; }
+  .act.quiet { background: rgba(255,255,255,.1); color: var(--text); }
+  .act.quiet:hover { background: rgba(255,255,255,.16); }
+  .panel { display: grid; gap: 8px; }
+  .panel[hidden] { display: none; }
+  .panel .act { justify-self: start; }
+  .panel pre { padding: 10px 12px; border-radius: 10px; background: #000; border: 1px solid var(--line); font-size: 11.5px; color: var(--orb); white-space: pre-wrap; word-break: break-all; }
+  .panel .meta { font-size: 12.5px; color: var(--faint); }
+  .warn { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: rgba(240,158,38,.08); border: 1px solid rgba(240,158,38,.2); font-size: 13.5px; color: var(--dim); }
+  .warn b { color: var(--orange); }
+  .risk { font-size: 12.5px; color: var(--orange); }
+  .empty { margin-top: 16px; padding: 20px; border-radius: 18px; border: 1px dashed var(--line); color: var(--faint); font-size: 14px; }
+
+  .publish { margin-top: 96px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+  .step { padding: 20px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); }
+  .step b { display: block; color: var(--teal); font-size: 13px; margin-bottom: 6px; }
+  .step p { color: var(--dim); font-size: 14px; }
+  .publish .more { margin-top: 16px; color: var(--faint); font-size: 14px; }
+  .publish .more a { color: var(--dim); text-decoration: underline; }
+
+  footer { margin-top: 110px; border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: 13px; color: var(--faint); }
+  footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  footer .sp { flex: 1; }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    nav .links { display: none; }
+    nav .btn { margin-left: auto; }
+    header { padding-top: 56px; }
+    .grid, .steps { grid-template-columns: 1fr; }
+    .label .why { display: none; }
+  }
+  @media (min-width: 641px) and (max-width: 960px) {
+    .grid, .steps { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="./"><i></i>Notchkeeper</a>
+    <div class="links">
+      <a href="./#features">Features</a>
+      <a href="./#install">Install</a>
+      <a class="on" href="plugins.html">Plugins</a>
+    </div>
+    <a class="btn" href="https://github.com/thevahidal/notchkeeper">★ GitHub</a>
+  </div>
+</nav>
+
+<main class="wrap">
+  <header>
+    <div class="eyebrow">Plugins</div>
+    <h1>Make the notch do more.</h1>
+    <p class="lead">Small scripts that run when an agent needs you, finishes or asks for approval. Every plugin is off until you turn it on in Settings.</p>
+  </header>
+
+  <section class="group">
+    <div class="label">Official <span class="n" id="official-n"></span><span class="why">Made and maintained by Notchkeeper</span></div>
+    <div class="grid" id="official"></div>
+  </section>
+  <section class="group">
+    <div class="label">Community <span class="n" id="community-n"></span><span class="why">Reviewed before listing, maintained by their authors</span></div>
+    <p class="warn"><b>Use at your own risk.</b> Community plugins are written by other people. We read each one before listing it and pin the exact version we read, but we can't guarantee it's safe. A plugin runs with your permissions.</p>
+    <div class="grid" id="community"></div>
+    <p class="empty" id="none" hidden>No community plugins yet. Built one? See below.</p>
+  </section>
+  <p class="empty" id="empty" hidden>Couldn't load the plugin list. See <a href="https://github.com/thevahidal/notchkeeper/tree/main/marketplace" style="text-decoration:underline">the listings on GitHub</a>.</p>
+
+  <section class="publish" id="publish">
+    <div class="eyebrow">Publish a plugin</div>
+    <h2>Built one? List it here.</h2>
+    <div class="steps">
+      <div class="step"><b>1 · Push</b><p>Put your plugin in a public GitHub repo.</p></div>
+      <div class="step"><b>2 · Open a PR</b><p>Add one file, <code>marketplace/&lt;id&gt;.json</code>, pinned to a commit.</p></div>
+      <div class="step"><b>3 · Review</b><p>Checks run on the PR, then a person reads the code and merges it.</p></div>
+    </div>
+    <p class="more">Format and details in <a href="https://github.com/thevahidal/notchkeeper/blob/main/marketplace/README.md">marketplace/README.md</a>. Plugins run on your Mac with your permissions, so only install what you trust.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="./"><i></i>Notchkeeper</a>
+    <span class="sp"></span>
+    <span>MIT licensed</span>
+    <a href="https://github.com/thevahidal/notchkeeper">GitHub</a>
+    <span>Not affiliated with Anthropic. Claude is a trademark of Anthropic.</span>
+  </div>
+</footer>
+
+<script>
+  // Listings are written by third parties: build nodes with textContent, never innerHTML.
+  const EVENTS = { 'needs-you': 'Needs you', done: 'Done', approval: 'Approval' };
+  const el = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  const COLORS = ['var(--orb)', 'var(--teal)', 'var(--orange)', 'rgb(115,166,250)', 'rgb(240,153,122)', 'rgb(150,196,89)'];
+  const color = id => COLORS[[...id].reduce((h, ch) => h + ch.charCodeAt(0), 0) % COLORS.length];
+
+  function card(p) {
+    const c = el('article', p.official ? 'card' : 'card community');
+    const mono = el('div', 'mono', [...p.name][0].toUpperCase());
+    mono.style.setProperty('--c', color(p.id));
+    const names = el('div');
+    names.append(el('h3', null, p.name), el('div', 'by', p.builtIn ? 'Built in' : 'by ' + p.author));
+    const head = el('div', 'head');
+    head.append(mono, names);
+
+    const chips = el('div', 'chips');
+    chips.append(...p.events.map(e => el('span', null, EVENTS[e] || e)));
+    chips.append(p.sendsDataOffMac ? el('span', 'off', '↗ Sends data off your Mac') : el('span', 'local', '● Stays on your Mac'));
+
+    const source = el('a', null, 'View source');
+    if (/^https:\/\/github\.com\//.test(p.source)) source.href = p.source;
+    else source.hidden = true;
+    source.rel = 'noopener noreferrer';
+    const foot = el('div', 'foot');
+    c.append(head, el('p', null, p.description), chips);
+
+    if (p.builtIn) {
+      foot.append(el('span', null, 'In the app → Settings → Plugins'), el('span', 'sp'), source);
+      c.append(foot);
+      return c;
+    }
+    const panel = el('div', 'panel');
+    panel.hidden = true;
+    const copy = el('button', 'act quiet', 'Copy');
+    copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(p.install); copy.textContent = 'Copied'; }
+      catch { copy.textContent = 'Select & copy'; }
+      setTimeout(() => copy.textContent = 'Copy', 1600);
+    });
+    const settings = p.settings.length ? ' · Settings: ' + p.settings.map(s => s.title || s.key).join(', ') : '';
+    panel.append(el('div', 'risk', 'Third-party code. It runs on your Mac with your permissions and can read your files or use the network. Read the source before you install it.'),
+      el('pre', null, p.install), el('div', 'meta', 'Installs turned off. License: ' + p.license + settings));
+    const install = el('button', 'act', 'Install');
+    install.addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+      install.textContent = panel.hidden ? 'Install' : 'Hide';
+      if (!panel.hidden) panel.querySelector('.meta').before(copy);
+    });
+    foot.append(install, el('span', 'sp'), source);
+    c.append(foot, panel);
+    return c;
+  }
+
+  const fill = (id, list) => {
+    document.getElementById(id).append(...list.map(card));
+    document.getElementById(id + '-n').textContent = list.length;
+  };
+
+  fetch('plugins.json')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(list => {
+      const community = list.filter(p => !p.official);
+      fill('official', list.filter(p => p.official));
+      fill('community', community);
+      document.getElementById('none').hidden = community.length > 0;
+    })
+    .catch(() => document.getElementById('empty').hidden = false);
+</script>
+</body>
+</html>

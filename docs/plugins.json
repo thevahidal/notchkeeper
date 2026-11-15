@@ -6,6 +6,7 @@
     "author": "Notchkeeper",
     "license": "MIT",
     "builtIn": true,
+    "official": true,
     "sendsDataOffMac": false,
     "events": [
       "needs-you",
@@ -23,6 +24,7 @@
     "author": "Notchkeeper",
     "license": "MIT",
     "builtIn": true,
+    "official": true,
     "sendsDataOffMac": true,
     "events": [
       "needs-you",
@@ -50,6 +52,7 @@
     "author": "Notchkeeper",
     "license": "MIT",
     "builtIn": true,
+    "official": true,
     "sendsDataOffMac": false,
     "events": [
       "needs-you",
