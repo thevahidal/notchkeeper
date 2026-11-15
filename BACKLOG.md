@@ -23,6 +23,7 @@ Notchkeeper (formerly Ping).
 - **Diff preview** for Edit / Write / MultiEdit.
 - **Approval log**: `~/.notchkeeper/approvals.log`, JSON lines, 600, rotated at 1 MB.
 - **While you were away**: after 5+ minutes idle, one card on return with who finished, who waits and files edited. Logic not exercised live yet (needs real idle time).
+- **Renamed to Notchkeeper** (v0.2.0): repo, release, tap cask (with `ping` → `notchkeeper` rename), site at thevahidal.github.io/notchkeeper; connecting swaps old Ping hooks.
 - **App icon** (`tools/icon.sh`) and **screenshots** rendered from the real views (`tools/screenshots.sh`).
 
 ## Open
@@ -33,7 +34,6 @@ Notchkeeper (formerly Ping).
 - **tmux.** Jump and reply via `tmux send-keys` to the pane.
 - **Clickable options.** AskUserQuestion answers from the notch (needs a reliable send path per terminal).
 
-- **Finish the rename to Notchkeeper (public steps).** Code, bundle id (`io.github.thevahidal.notchkeeper`), `~/.notchkeeper`, hooks and docs are renamed, and connecting swaps old Ping hooks. Still to do, in this order: rename the GitHub repo to `notchkeeper` (Pages moves to thevahidal.github.io/notchkeeper and the old Pages URL won't redirect), tag a release (assets are now Notchkeeper.zip/.dmg), add `Casks/notchkeeper.rb` to the tap. Merge to main only together with these, or the site's download links break.
 
 ## Ideas
 - Deny with feedback: a text field whose message goes back to Claude.
