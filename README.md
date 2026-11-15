@@ -1,7 +1,5 @@
 # Notchkeeper
 
-*Formerly Ping.*
-
 Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch and shows what every Claude Code, Codex and Gemini CLI agent is doing, which one is stuck waiting on you, and lets you answer without switching windows. Built for people juggling many things: nothing waiting on you gets lost.
 
 **[thevahidal.github.io/notchkeeper](https://thevahidal.github.io/notchkeeper/)** · [Download](https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg) · `brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper`
