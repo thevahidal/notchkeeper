@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ping: Claude Code agents in your notch</title>
+<meta name="description" content="Ping turns your MacBook's notch into a live control tower for Claude Code. See every agent, approve commands and reply without switching windows. Free and open source.">
+<meta property="og:title" content="Ping: Claude Code agents in your notch">
+<meta property="og:description" content="Live status, approvals and replies for your Claude Code agents, right in the MacBook notch.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='black'/><circle cx='11' cy='16' r='3.5' fill='%23b0a8ed'/><circle cx='21' cy='16' r='3.5' fill='%23f09e26'/></svg>">
+<style>
+  :root {
+    --bg: #07070a;
+    --panel: #0f0f14;
+    --line: rgba(255,255,255,.08);
+    --text: #f4f4f6;
+    --dim: rgba(244,244,246,.62);
+    --faint: rgba(244,244,246,.38);
+    --violet: rgb(128,120,222);
+    --orb: rgb(176,168,237);
+    --teal: rgb(92,201,166);
+    --orange: rgb(240,158,38);
+    --coral: rgb(240,153,122);
+    --green: rgb(150,196,89);
+    --blue: rgb(115,166,250);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; overflow-x: clip; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* Aurora behind the hero */
+  .aurora { position: absolute; inset: -20% -10% auto; height: 900px; pointer-events: none; z-index: 0; filter: blur(90px); opacity: .55; }
+  .aurora span { position: absolute; border-radius: 50%; animation: drift 18s ease-in-out infinite alternate; }
+  .aurora span:nth-child(1) { width: 520px; height: 520px; left: 18%; top: 8%; background: var(--violet); }
+  .aurora span:nth-child(2) { width: 420px; height: 420px; right: 16%; top: 4%; background: var(--teal); animation-delay: -6s; opacity: .7; }
+  .aurora span:nth-child(3) { width: 360px; height: 360px; left: 44%; top: 30%; background: var(--orange); animation-delay: -12s; opacity: .35; }
+  @keyframes drift { to { transform: translate(60px, 40px) scale(1.15); } }
+
+  /* Nav */
+  nav { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); background: rgba(7,7,10,.6); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; height: 60px; gap: 28px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
+  .logo i { width: 26px; height: 26px; border-radius: 8px; background: #000; border: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; place-items: center; padding: 0 4px; }
+  .logo i::before, .logo i::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--orb); box-shadow: 0 0 6px var(--orb); }
+  .logo i::after { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  nav .links { display: flex; gap: 24px; margin-left: auto; font-size: 14px; color: var(--dim); }
+  nav .links a:hover { color: var(--text); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 14px; transition: transform .15s, background .2s, box-shadow .2s; white-space: nowrap; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.primary { background: var(--text); color: #000; box-shadow: 0 8px 30px rgba(255,255,255,.12); }
+  .btn.ghost { background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+  .btn.ghost:hover { background: rgba(255,255,255,.1); }
+  nav .btn { height: 34px; padding: 0 14px; }
+
+  /* Hero */
+  .hero { position: relative; padding: 96px 0 40px; text-align: center; }
+  .hero .wrap { position: relative; z-index: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); font-size: 13px; color: var(--dim); }
+  .pill b { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+  h1 { font-size: clamp(44px, 8vw, 88px); line-height: 1.02; letter-spacing: -.045em; font-weight: 800; margin: 22px auto 22px; max-width: 900px; }
+  .grad { background: linear-gradient(100deg, var(--orb), var(--teal) 45%, var(--orange) 90%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { font-size: clamp(17px, 2.2vw, 21px); color: var(--dim); max-width: 640px; margin: 0 auto; }
+  .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .ctas .btn { height: 48px; padding: 0 24px; font-size: 15px; }
+  .copy { display: inline-flex; align-items: center; gap: 12px; height: 48px; padding: 0 8px 0 18px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid var(--line); font-size: 13.5px; color: var(--dim); max-width: 100%; }
+  .copy code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .copy button { flex: none; height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: rgba(255,255,255,.1); color: var(--text); font: 600 12px/1 inherit; cursor: pointer; }
+  .copy button:hover { background: rgba(255,255,255,.16); }
+  .meta { margin-top: 18px; font-size: 13px; color: var(--faint); }
+
+  /* The demo screen */
+  .stage { position: relative; margin: 64px auto 0; max-width: 980px; }
+  .screen { position: relative; aspect-ratio: 16 / 9.4; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 40px 120px rgba(0,0,0,.7), 0 0 0 10px #0c0c10, 0 0 0 11px rgba(255,255,255,.07); background: radial-gradient(120% 90% at 20% 10%, #2a2160 0%, transparent 55%), radial-gradient(90% 80% at 85% 20%, #0f4a3f 0%, transparent 55%), radial-gradient(80% 70% at 60% 100%, #4a2a10 0%, transparent 60%), #0b0b12; }
+  .menubar { position: absolute; inset: 0 0 auto; height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 12.5px; color: rgba(255,255,255,.85); background: rgba(0,0,0,.18); }
+  .menubar .l, .menubar .r { display: flex; gap: 18px; align-items: center; }
+  .menubar .l b { font-weight: 700; }
+  .windows { position: absolute; left: 6%; right: 6%; top: 17%; bottom: 7%; display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; }
+  .win { border-radius: 12px; background: rgba(14,14,20,.78); border: 1px solid rgba(255,255,255,.08); padding: 34px 18px 18px; position: relative; overflow: hidden; font-size: 12px; color: var(--faint); }
+  .win::before { content: ""; position: absolute; top: 12px; left: 14px; width: 42px; height: 10px; background: radial-gradient(circle at 5px 5px, #ff5f57 4.5px, transparent 5px), radial-gradient(circle at 21px 5px, #febc2e 4.5px, transparent 5px), radial-gradient(circle at 37px 5px, #28c840 4.5px, transparent 5px); }
+  .win .ln { height: 8px; border-radius: 4px; background: rgba(255,255,255,.07); margin: 9px 0; }
+  .win .ln.s { width: 40%; } .win .ln.m { width: 70%; } .win .ln.c { background: rgba(92,201,166,.25); width: 55%; }
+  .hint { position: absolute; top: 58px; left: 50%; transform: translateX(170px); font-size: 12px; color: rgba(255,255,255,.55); display: flex; align-items: center; gap: 6px; pointer-events: none; transition: opacity .3s; }
+  .hint::before { content: "←"; }
+
+  /* The notch */
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 320px; height: 37px; background: #000; border-radius: 0 0 12px 12px; transition: width .5s cubic-bezier(.3,1.4,.5,1), height .5s cubic-bezier(.3,1.4,.5,1), border-radius .4s; overflow: hidden; z-index: 5; cursor: default; }
+  .notch.open { width: 400px; border-radius: 0 0 24px 24px; }
+  .notch .cam { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 190px; height: 32px; }
+  .ear { position: absolute; top: 0; height: 32px; width: 60px; display: flex; align-items: center; justify-content: center; gap: 5px; transition: opacity .2s; }
+  .ear.l { left: 0; } .ear.r { right: 0; font: 600 12px/1 ui-rounded, -apple-system, sans-serif; }
+  .orb { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--c); box-shadow: 0 0 6px var(--c); }
+  .orb.work { --c: var(--orb); }
+  .orb.turn { --c: var(--green); animation: breathe 3.9s ease-in-out infinite; }
+  .orb.need { --c: var(--orange); animation: breathe 1.4s ease-in-out infinite; }
+  .orb.seen { --c: var(--green); opacity: .4; box-shadow: none; }
+  @keyframes breathe { 50% { opacity: .3; } }
+  .glow { position: absolute; left: 10%; right: 10%; bottom: 0; height: 3px; border-radius: 3px; opacity: 0; transition: opacity .4s; -webkit-mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
+  .glow::before, .glow::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--g1), var(--g2), var(--g1), var(--g2), var(--g1)); background-size: 200% 100%; animation: flow 2.4s linear infinite; }
+  .glow::after { filter: blur(6px); inset: -4px 0; opacity: .9; }
+  @keyframes flow { to { background-position: -200% 0; } }
+  .notch[data-mood="working"] .glow { --g1: var(--violet); --g2: var(--teal); opacity: 1; }
+  .notch[data-mood="turn"] .glow { --g1: var(--green); --g2: var(--teal); opacity: 1; animation: breathe 3.9s ease-in-out infinite; }
+  .notch[data-mood="need"] .glow { --g1: var(--orange); --g2: var(--coral); opacity: 1; animation: breathe 1.4s ease-in-out infinite; }
+  .notch.open .ear { opacity: 0; }
+  .notch.open .glow { opacity: 0 !important; }
+
+  .panel { position: absolute; top: 36px; left: 0; right: 0; padding: 4px 20px 0; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .notch.open .panel.on { opacity: 1; transition-delay: .15s; pointer-events: auto; }
+  .row { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; text-align: left; border-radius: 8px; cursor: pointer; }
+  .row .orb { transform: translateY(-1px); }
+  .row .body { flex: 1; min-width: 0; }
+  .row .top { display: flex; align-items: center; gap: 6px; }
+  .row .t { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .app { flex: none; width: 14px; height: 14px; border-radius: 4px; background: linear-gradient(135deg, #d97757, #c15f3c); position: relative; }
+  .row .app.cli::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; border-radius: 2px; background: #1d1d24; border: 1px solid #555; }
+  .row .sp { flex: 1; }
+  .badge { flex: none; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; color: var(--bc); background: color-mix(in srgb, var(--bc) 16%, transparent); }
+  .repo { flex: none; font-size: 11px; color: var(--faint); }
+  .row .d { display: flex; gap: 8px; font-size: 12px; color: rgba(255,255,255,.55); margin-top: 2px; }
+  .row .d span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .d .q { color: rgba(255,255,255,.88); }
+  .row .m { flex: none; font-size: 11px; color: rgba(255,255,255,.35); }
+  .row .sub { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; max-width: none; }
+  .row .sub b { color: var(--teal); font-weight: 500; }
+  .reply { flex: none; align-self: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.1); display: grid; place-items: center; font-size: 12px; color: rgba(255,255,255,.75); }
+
+  .card { text-align: left; padding-top: 6px; }
+  .card .h { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .card .h b { font-weight: 600; }
+  .card .h span { color: rgba(255,255,255,.55); font-size: 12px; }
+  .ring { margin-left: auto; width: 14px; height: 14px; }
+  .ring circle { fill: none; stroke: var(--orange); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 37.7; transform: rotate(-90deg); transform-origin: center; }
+  .card .cmd { margin: 10px 0; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.08); font-size: 12px; color: rgba(255,255,255,.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .acts { display: flex; gap: 8px; }
+  .card .acts button { height: 26px; padding: 0 14px; border-radius: 999px; border: 0; font: 600 12px/1 -apple-system, sans-serif; cursor: pointer; color: #fff; background: rgba(255,255,255,.14); transition: transform .12s; }
+  .card .acts button:active { transform: scale(.95); }
+  .card .acts .allow { background: var(--green); color: #000; }
+  .card .acts .term { margin-left: auto; background: none; color: rgba(255,255,255,.6); }
+
+  /* Sections */
+  section { position: relative; padding: 120px 0 0; }
+  .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); }
+  h2 { font-size: clamp(32px, 5vw, 52px); line-height: 1.08; letter-spacing: -.035em; font-weight: 800; margin: 12px 0 16px; max-width: 760px; }
+  .lead { font-size: 18px; color: var(--dim); max-width: 620px; }
+  .grid { display: grid; gap: 16px; margin-top: 48px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .tile { position: relative; padding: 26px; border-radius: 20px; background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border: 1px solid var(--line); overflow: hidden; transition: border-color .25s, transform .25s; }
+  .tile:hover { border-color: rgba(255,255,255,.16); transform: translateY(-2px); }
+  .tile h3 { font-size: 17px; letter-spacing: -.01em; margin: 14px 0 6px; }
+  .tile p { font-size: 14.5px; color: var(--dim); }
+  .tile .ic { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: color-mix(in srgb, var(--ic) 14%, transparent); border: 1px solid color-mix(in srgb, var(--ic) 30%, transparent); color: var(--ic); font-size: 17px; }
+  .tile.big { grid-column: span 2; }
+  .quote { font-size: 15px; color: var(--text); font-style: italic; }
+  .quote + p { margin-top: 10px; }
+
+  .steps { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 18px; margin-top: 48px; }
+  .step { padding: 24px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); }
+  .step .n { font-size: 12px; color: var(--faint); font-weight: 600; }
+  .step h3 { font-size: 16px; margin: 6px 0; }
+  .step p { font-size: 14px; color: var(--dim); }
+  .step code { font-size: 12.5px; color: var(--orb); }
+  .arrow { color: var(--faint); font-size: 20px; }
+
+  .checks { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 40px; margin-top: 40px; }
+  .checks li { display: flex; gap: 14px; font-size: 15px; color: var(--dim); }
+  .checks li::before { content: "✓"; flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--green); background: rgba(150,196,89,.14); margin-top: 1px; }
+  .checks b { color: var(--text); font-weight: 600; }
+
+  .install { margin-top: 44px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); overflow: hidden; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; height: 50px; border: 0; background: none; color: var(--faint); font: 600 14px/1 inherit; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--teal); }
+  .pane { display: none; padding: 30px; }
+  .pane.on { display: block; }
+  .pane pre { padding: 16px 18px; border-radius: 12px; background: #000; border: 1px solid var(--line); font-size: 13.5px; color: var(--orb); overflow-x: auto; white-space: pre; }
+  .pane p { color: var(--dim); font-size: 14.5px; margin-top: 14px; }
+  .note { margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: rgba(240,158,38,.08); border: 1px solid rgba(240,158,38,.2); font-size: 14px; color: var(--dim); }
+  .note b { color: var(--orange); }
+
+  .final { text-align: center; padding: 140px 0 120px; }
+  .final h2 { margin: 0 auto 16px; }
+  .final .lead { margin: 0 auto; }
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; font-size: 13px; color: var(--faint); }
+  footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  footer .sp { flex: 1; }
+  footer a:hover { color: var(--text); }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    .g3, .g4 { grid-template-columns: 1fr 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); justify-self: center; }
+    .checks { grid-template-columns: 1fr; }
+    .hint { display: none; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    nav .links { display: none; }
+    nav .btn { margin-left: auto; }
+    .hero { padding-top: 64px; }
+    .g3, .g4 { grid-template-columns: 1fr; }
+    .tile.big { grid-column: auto; }
+    .windows { display: none; }
+    .screen { aspect-ratio: auto; height: 300px; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+    .menubar .l, .menubar .r { display: none; }
+    .notch { transform: translateX(-50%) scale(.82); transform-origin: top center; }
+    .copy code { font-size: 12px; }
+    section { padding-top: 88px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="#"><i></i>Ping</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#security">Security</a>
+      <a href="#install">Install</a>
+    </div>
+    <a class="btn ghost" href="https://github.com/thevahidal/ping">★ GitHub</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="aurora"><span></span><span></span><span></span></div>
+  <div class="wrap">
+    <span class="pill"><b></b>Free &amp; open source · for Claude Code</span>
+    <h1>Your agents,<br><span class="grad">one glance away.</span></h1>
+    <p class="sub">Ping turns your MacBook's notch into a live control tower for Claude Code. See every agent, approve commands and reply, without leaving what you're doing.</p>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download for Mac</a>
+      <div class="copy"><code>brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping</code><button data-copy="brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping">Copy</button></div>
+    </div>
+    <p class="meta">macOS 14+ · Apple silicon with a notch · Claude Code CLI &amp; desktop</p>
+
+    <div class="stage">
+      <div class="screen">
+        <div class="menubar">
+          <div class="l"><b></b><b>Ghostty</b><span>Shell</span><span>Edit</span><span>View</span></div>
+          <div class="r"><span>〰</span><span>⌁ 92%</span><span id="clock">Sat 9:41</span></div>
+        </div>
+        <div class="windows">
+          <div class="win"><div class="ln m"></div><div class="ln c"></div><div class="ln"></div><div class="ln s"></div><div class="ln m"></div><div class="ln c"></div><div class="ln s"></div></div>
+          <div class="win"><div class="ln s"></div><div class="ln"></div><div class="ln m"></div><div class="ln"></div><div class="ln s"></div></div>
+        </div>
+        <div class="hint" id="hint">hover the notch</div>
+
+        <div class="notch" id="notch" data-mood="working">
+          <div class="ear l" id="dots"></div>
+          <div class="ear r" id="count"></div>
+          <div class="glow"></div>
+
+          <div class="panel" id="list">
+            <div class="row" data-k="api">
+              <i class="orb need"></i>
+              <div class="body">
+                <div class="top"><i class="app cli"></i><span class="t">Fix the login redirect loop</span><span class="sp"></span><span class="badge" style="--bc:var(--blue)">plan</span><span class="repo">api</span></div>
+                <div class="d"><span class="q">Ship the fix to staging now?</span><span class="m">Opus 5.5 · high</span></div>
+              </div>
+              <span class="reply">↩</span>
+            </div>
+            <div class="row">
+              <i class="orb work"></i>
+              <div class="body">
+                <div class="top"><i class="app"></i><span class="t">Migrate billing to Stripe v3</span><span class="sp"></span><span class="badge" style="--bc:var(--teal)">auto</span><span class="repo">billing</span></div>
+                <div class="d"><span>Edit: webhooks.ts</span><span class="m">Sonnet 5.5 · medium</span></div>
+                <div class="sub"><b>↳ Explore</b> · find every place that reads invoice totals · Grep: invoice.total</div>
+              </div>
+            </div>
+            <div class="row">
+              <i class="orb turn"></i>
+              <div class="body">
+                <div class="top"><i class="app cli"></i><span class="t">Write tests for the parser</span><span class="sp"></span><span class="badge" style="--bc:rgba(255,255,255,.55)">ask</span><span class="repo">lexer</span></div>
+                <div class="d"><span>All 48 tests pass. Want me to add fuzzing? · 2 min</span><span class="m">Opus 5.5 · low</span></div>
+              </div>
+              <span class="reply">↩</span>
+            </div>
+            <div class="row">
+              <i class="orb seen"></i>
+              <div class="body">
+                <div class="top"><i class="app"></i><span class="t" style="opacity:.6">Upgrade to React 20</span><span class="sp"></span><span class="badge" style="--bc:var(--violet)">edits</span><span class="repo">web</span></div>
+                <div class="d"><span>Done. The bundle is 18% smaller.</span><span class="m">Opus 5.5 · high</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="card">
+            <div class="card">
+              <div class="h"><i class="orb need"></i><b>api</b><span>wants to use Bash</span>
+                <svg class="ring" viewBox="0 0 14 14"><circle id="ringc" cx="7" cy="7" r="6"/></svg></div>
+              <div class="cmd mono">rm -rf node_modules &amp;&amp; npm ci &amp;&amp; npm run migrate</div>
+              <div class="acts">
+                <button class="allow" data-answer>Allow ⌥Y</button>
+                <button data-answer>Deny ⌥N</button>
+                <button class="term" data-answer>Use terminal</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap reveal">
+    <div class="eyebrow">The problem</div>
+    <h2>Agents don't fail. They wait.</h2>
+    <p class="lead">You start three Claude Code sessions and switch to something else. Twenty minutes later, two of them have been sitting on a permission prompt the whole time.</p>
+    <div class="grid g3">
+      <div class="tile"><div class="ic" style="--ic:var(--orange)">⏸</div><h3>Stalled on a prompt you never saw</h3><p>The approval is buried in a background tab, so the agent sits idle until you happen to check.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--violet)">▦</div><h3>Ten tabs, no idea which is done</h3><p>Every session looks the same from the outside. Finding the one that needs you means clicking through all of them.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--teal)">↯</div><h3>Every check breaks your flow</h3><p>Checking in on agents is a context switch. Not checking in costs you the time they spend waiting.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap reveal">
+    <div class="eyebrow">Features</div>
+    <h2>Everything your agents need from you, right where you look.</h2>
+    <div class="grid g4">
+      <div class="tile big"><div class="ic" style="--ic:var(--orange)">✓</div><h3>Approve from the notch</h3><p>When Claude asks for permission, the notch opens with the exact command. Allow with ⌥Y, deny with ⌥N, or send it back to the terminal. It never approves anything on its own.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--green)">↩</div><h3>Reply without switching</h3><p>Type a reply in the notch and it lands in that agent's Ghostty tab.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--orb)">◎</div><h3>Jump to the agent</h3><p>Click a row to focus its exact terminal tab, or the Claude app.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--orange)">?</div><h3>Questions stand out</h3><p>When a turn ends with a question, the row turns orange and shows it.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--blue)">◐</div><h3>Mode, model, effort</h3><p>See which agents are in plan, auto or bypass mode, and what model they run.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--teal)">⑂</div><h3>Subagents, nested</h3><p>Running subagents show up under the agent that started them.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--violet)">∞</div><h3>Scales to tens</h3><p>Dots become counts and the list scrolls, most urgent first.</p></div>
+      <div class="tile big"><div class="ic" style="--ic:var(--green)">◉</div><h3>Glanceable by design</h3><p>Violet while working, green when it's your turn, orange when something needs you. A soft glow under the notch tells you the overall state from across the room, and it stays visible in full-screen apps and on every Space.</p></div>
+      <div class="tile big"><div class="ic" style="--ic:var(--coral)">⌘</div><h3>CLI and desktop</h3><p>Works with the Claude Code CLI in any terminal and with the Claude desktop app, since both read the same hooks. Jumping and replying work best in Ghostty.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap reveal">
+    <div class="eyebrow">How it works</div>
+    <h2>Built on Claude Code hooks. Nothing else.</h2>
+    <p class="lead">No accounts, no API keys, no servers. Ping listens to the hooks Claude Code already supports.</p>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><h3>Claude fires a hook</h3><p>On every tool call, stop or question, Claude Code runs a tiny script from <code>~/.ping/hooks</code>.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">02</div><h3>A local socket</h3><p>The script hands the event to Ping over <code>~/.ping/ping.sock</code>, a Unix socket only you can open.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">03</div><h3>Your notch</h3><p>Ping updates the notch. For approvals, your click goes back the same way.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap reveal">
+    <div class="eyebrow">Security</div>
+    <h2>It sits next to your permission prompts. So it's built to fail safe.</h2>
+    <ul class="checks">
+      <li><span><b>Nothing leaves your Mac.</b> No network connections, no telemetry, no account. Events go over a local socket and stay in memory.</span></li>
+      <li><span><b>Fails closed.</b> If Ping isn't running, times out or crashes, Claude shows its normal prompt. Nothing is approved without your click.</span></li>
+      <li><span><b>No accidental approvals.</b> Clicks and hotkeys are ignored for the first moment after a card appears.</span></li>
+      <li><span><b>Asks before it touches your settings.</b> Connecting adds only Ping's hooks to <code>~/.claude/settings.json</code> and keeps a backup.</span></li>
+      <li><span><b>Locked-down socket.</b> <code>~/.ping</code> is private to you, so other users on your Mac can't answer your approvals.</span></li>
+      <li><span><b>Replies only reach Claude.</b> Ping types into a terminal only while Claude is running there, never into a bare shell.</span></li>
+      <li><span><b>Untrusted input, handled as such.</b> Every event field is validated before Ping uses it.</span></li>
+      <li><span><b>Open source, MIT.</b> Read every line on <a href="https://github.com/thevahidal/ping" style="text-decoration:underline">GitHub</a>.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap reveal">
+    <div class="eyebrow">Install</div>
+    <h2>Up and running in a minute.</h2>
+    <div class="install">
+      <div class="tabs">
+        <button class="on" data-tab="brew">Homebrew</button>
+        <button data-tab="dmg">Download</button>
+        <button data-tab="src">From source</button>
+      </div>
+      <div class="pane on" id="brew">
+        <pre>brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping</pre>
+        <p>Homebrew asks you to trust casks from third-party taps before it loads them; that's the first command. Uninstall with <code>brew uninstall --zap --cask ping</code>, which also disconnects Ping from Claude Code.</p>
+      </div>
+      <div class="pane" id="dmg">
+        <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download Ping.dmg</a>
+        <p>Open it and drag Ping to Applications. All releases are on <a href="https://github.com/thevahidal/ping/releases" style="text-decoration:underline">GitHub</a>.</p>
+      </div>
+      <div class="pane" id="src">
+        <pre>git clone https://github.com/thevahidal/ping.git && cd ping
+./build.sh
+open .build/Ping.app</pre>
+        <p>Needs the Xcode Command Line Tools (<code>xcode-select --install</code>).</p>
+      </div>
+      <div class="pane on" style="padding-top:0">
+        <div class="note"><b>First open:</b> Ping isn't signed with an Apple Developer ID yet, so macOS warns that it can't verify the developer. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>. Then Ping asks, in the notch, before it connects to Claude Code.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap reveal">
+    <h2>Stop babysitting tabs.<br><span class="grad">Let the notch tell you.</span></h2>
+    <p class="lead">Free and open source.</p>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download for Mac</a>
+      <a class="btn ghost" href="https://github.com/thevahidal/ping">View on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="#"><i></i>Ping</a>
+    <span class="sp"></span>
+    <span>MIT licensed</span>
+    <a href="https://github.com/thevahidal/ping">GitHub</a>
+    <span>Not affiliated with Anthropic. Claude is a trademark of Anthropic.</span>
+  </div>
+</footer>
+
+<script>
+  // The demo notch cycles through Ping's real states; hovering opens the session list.
+  const notch = document.getElementById('notch');
+  const dots = document.getElementById('dots');
+  const count = document.getElementById('count');
+  const list = document.getElementById('list');
+  const card = document.getElementById('card');
+  const hint = document.getElementById('hint');
+  const ring = document.getElementById('ringc');
+
+  const scenes = [
+    { mood: 'working', orbs: ['work', 'work', 'turn', 'seen'], waiting: 1, ms: 3600 },
+    { mood: 'turn', orbs: ['turn', 'work', 'turn', 'seen'], waiting: 2, ms: 3200 },
+    { mood: 'need', orbs: ['need', 'work', 'turn', 'seen'], waiting: 3, ms: 5200, card: true },
+  ];
+  let i = 0, hovering = false, cardOpen = false, timer, ringStart;
+
+  function render(s) {
+    notch.dataset.mood = s.mood;
+    dots.innerHTML = s.orbs.map(o => `<i class="orb ${o}"></i>`).join('');
+    count.textContent = s.waiting || '';
+    count.style.color = s.mood === 'need' ? 'var(--orange)' : 'var(--green)';
+    cardOpen = !!s.card;
+    if (cardOpen) ringStart = performance.now();
+    layout();
+  }
+
+  function layout() {
+    const showCard = cardOpen && !hovering;
+    const open = showCard || hovering;
+    notch.classList.toggle('open', open);
+    card.classList.toggle('on', showCard);
+    list.classList.toggle('on', hovering);
+    notch.style.height = !open ? '37px' : showCard ? '150px' : (36 + list.scrollHeight + 10) + 'px';
+  }
+
+  function next() {
+    render(scenes[i]);
+    timer = setTimeout(next, scenes[i].ms);
+    i = (i + 1) % scenes.length;
+  }
+
+  function tick(now) {
+    if (cardOpen && ringStart) {
+      const left = Math.max(0, 1 - (now - ringStart) / 5200);
+      ring.style.strokeDashoffset = 37.7 * (1 - left);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  notch.addEventListener('mouseenter', () => { hovering = true; hint.style.opacity = 0; layout(); });
+  notch.addEventListener('mouseleave', () => { hovering = false; layout(); });
+  // Touch screens have no mouseleave: tap the notch to open, anywhere else to close.
+  notch.addEventListener('click', () => { if (!hovering && !cardOpen) { hovering = true; layout(); } });
+  document.addEventListener('click', e => { if (hovering && !notch.contains(e.target)) { hovering = false; layout(); } });
+  card.querySelectorAll('[data-answer]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    clearTimeout(timer);
+    i = 0;
+    next();
+  }));
+
+  next();
+  requestAnimationFrame(tick);
+
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; }
+    catch { b.textContent = 'Select & copy'; }
+    setTimeout(() => b.textContent = 'Copy', 1600);
+  }));
+
+  document.querySelectorAll('[data-tab]').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('on', x === t));
+    ['brew', 'dmg', 'src'].forEach(id => document.getElementById(id).classList.toggle('on', id === t.dataset.tab));
+  }));
+
+  const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), { threshold: .12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
