@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Apple silicon runner: every Mac with a notch is arm64.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: VERSION="${GITHUB_REF_NAME#v}" ./build.sh
+
+      - name: Package
+        run: |
+          cd .build
+          ditto -c -k --keepParent Ping.app Ping.zip
+          # The disk image opens to Ping next to an Applications shortcut, for drag-to-install.
+          mkdir dmg && cp -R Ping.app dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname Ping -srcfolder dmg -ov -format UDZO Ping.dmg
+          shasum -a 256 Ping.zip Ping.dmg | tee checksums.txt
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" .build/Ping.zip .build/Ping.dmg .build/checksums.txt --title "Ping $GITHUB_REF_NAME" --generate-notes
