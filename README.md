@@ -5,11 +5,19 @@ Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch a
 **[thevahidal.github.io/notchkeeper](https://thevahidal.github.io/notchkeeper/)** · [Download](https://github.com/thevahidal/notchkeeper/releases/latest/download/Notchkeeper.dmg) · `brew trust --cask thevahidal/tap/notchkeeper && brew install --cask thevahidal/tap/notchkeeper`
 
 <p align="center">
-  <img src="docs/img/collapsed.png" alt="Collapsed notch: one dot per agent, and the name of the agent that needs you" width="760">
-  <img src="docs/img/expanded.png" alt="Expanded notch: every agent with its state, how long it has waited, branch and model" width="760">
-  <img src="docs/img/approval-risky.png" alt="Approval card flagging a risky command: runs a downloaded script" width="760">
-  <img src="docs/img/catch-up.png" alt="While you were away: what each agent did and who is waiting" width="760">
+  <img src="docs/img/desktop.png" alt="A desktop with four agents in terminals and the expanded notch showing each one's state" width="100%">
 </p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/img/approval-risky.png" alt="Approval card flagging a risky command"><br><sub>Risky commands are flagged before you approve</sub></td>
+    <td width="50%"><img src="docs/img/approval-edit.png" alt="Approval card showing an edit's diff"><br><sub>Edits show the lines removed and added</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/img/catch-up.png" alt="While you were away card"><br><sub>What each agent did while you were away</sub></td>
+    <td><img src="docs/img/plan.png" alt="A finished plan, formatted"><br><sub>Plans, formatted, ready to review</sub></td>
+  </tr>
+</table>
 
 ## What it does
 
@@ -24,6 +32,7 @@ Your coding agents, one glance away. Notchkeeper lives in your MacBook's notch a
 - **Queue a follow-up.** While an agent works, type your next message into its row. Notchkeeper sends it when the turn ends, unless the turn ends with a question for you.
 - **Tell Claude instead of just saying no.** On an approval card, **Tell Claude…** denies the call with your message ("use pnpm, not npm"), so the agent changes course instead of guessing.
 - **Never lose track.** Agents waiting on you stay in the notch for a day, even if they go quiet, and come back after a restart or update. When you open Notchkeeper, a card lists what's still waiting.
+- **Unsaved work.** When a turn ends, the row shows what's not saved in its folder (5 uncommitted · 2 unpushed), and clears once you commit and push. An agent that ends with unsaved work stays in the notch until it's saved or you close it.
 - **Snooze.** Can't deal with it now? Hover a waiting agent and pick 15 minutes, 1 hour or tomorrow at 9. It goes quiet and comes back with a ping.
 - **Gentle nudges.** If an agent has waited 10 minutes, Notchkeeper pings again every 10 minutes, or every 3 if you've stepped away.
 - **Plans.** When Claude finishes a plan, Notchkeeper shows it, formatted, and takes you to the session to approve it.
