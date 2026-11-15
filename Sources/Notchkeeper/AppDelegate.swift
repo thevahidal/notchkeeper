@@ -72,15 +72,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    // ~/.notchkeeper/bin/notchkeeper → this app, so `notchkeeper notify` / `run` work wherever the app lives.
+    // ~/.notchkeeper/bin/notchkeeper and its short name nk → this app, so the command works wherever the app lives.
     private func linkCommand(in dir: URL) {
         guard let executable = Bundle.main.executablePath else { return }
         let bin = dir.appendingPathComponent("bin")
-        let link = bin.appendingPathComponent("notchkeeper").path
         let fm = FileManager.default
         try? fm.createDirectory(at: bin, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        guard (try? fm.destinationOfSymbolicLink(atPath: link)) != executable else { return }
-        try? fm.removeItem(atPath: link)
-        try? fm.createSymbolicLink(atPath: link, withDestinationPath: executable)
+        for name in ["notchkeeper", "nk"] {
+            let link = bin.appendingPathComponent(name).path
+            guard (try? fm.destinationOfSymbolicLink(atPath: link)) != executable else { continue }
+            try? fm.removeItem(atPath: link)
+            try? fm.createSymbolicLink(atPath: link, withDestinationPath: executable)
+        }
     }
 }

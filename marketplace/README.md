@@ -24,9 +24,17 @@ The plugin list on the website is built from the files in this folder, one per p
 - `sendsDataOffMac`: `true` if the plugin sends anything over the network. Be honest; the site shows it on the card.
 - Name, description, events and settings come from your `plugin.json`, so they can't drift from the real plugin.
 
+People install it with `nk plugin install <id>`.
+
 ## Updating
 
-Open a PR that changes `commit`. The reviewer reads the changes between the old and new commit.
+Open a PR that changes `commit`. The reviewer reads the changes between the old and new commit. Once it's merged, `nk plugin update <id>` picks it up.
+
+## Checksums
+
+When the list is built, every listed plugin's files are hashed at its commit, and the hash goes into `docs/plugins.json`. `nk plugin install` hashes what it downloads and refuses to install if the two differ. Force-pushing can't change a commit, but it can delete one: then installs fail rather than fetch something else.
+
+Official means the code lives under `github.com/thevahidal`. Everything else is listed as community.
 
 ## Review
 

@@ -204,7 +204,7 @@
     });
     const settings = p.settings.length ? ' · Settings: ' + p.settings.map(s => s.title || s.key).join(', ') : '';
     panel.append(el('div', 'risk', 'Third-party code. It runs on your Mac with your permissions and can read your files or use the network. Read the source before you install it.'),
-      el('pre', null, p.install), el('div', 'meta', 'Installs turned off. License: ' + p.license + settings));
+      el('pre', null, p.install), el('div', 'meta', 'Checks the files match the reviewed version, then installs it turned off. License: ' + p.license + settings));
     const install = el('button', 'act', 'Install');
     install.addEventListener('click', () => {
       panel.hidden = !panel.hidden;
