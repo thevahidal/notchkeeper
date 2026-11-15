@@ -45,17 +45,45 @@ enum ClaudeCLI {
         }
     }
 
-    // Opens a terminal window attached to the background agent: Ghostty if installed, else Terminal.
+    static var attachInNewTab: Bool {
+        get { UserDefaults.standard.object(forKey: "attachInNewTab") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "attachInNewTab") }
+    }
+
+    // Attaches to the background agent in Ghostty if installed, else Terminal.
+    // Ghostty gets a new tab in its front window when it has one; Terminal always gets a new window.
     static func attach(_ sessionId: String) {
         guard let path else { return }
         let id = String(sessionId.prefix(8))
         guard id.allSatisfy(\.isHexDigit) else { return }
-        if let ghostty = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.mitchellh.ghostty") {
+        if let tty = attachedTTY(id), Jump.focus(tty: tty) { return }
+        let ghosttyId = "com.mitchellh.ghostty"
+        if attachInNewTab, !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyId).isEmpty {
+            let script = """
+            tell application id "\(ghosttyId)"
+                set config to {command:"'\(path)' attach \(id)"}
+                if (count of windows) > 0 then
+                    new tab in front window with configuration config
+                else
+                    new window with configuration config
+                end if
+                activate
+            end tell
+            """
+            NSAppleScript(source: script)?.executeAndReturnError(nil)
+        } else if let ghostty = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyId) {
             _ = run("/usr/bin/open", ["-na", ghostty.path, "--args", "-e", path, "attach", id], in: nil)
         } else {
             let script = "tell application id \"com.apple.Terminal\"\ndo script \"'\(path)' attach \(id)\"\nactivate\nend tell"
             NSAppleScript(source: script)?.executeAndReturnError(nil)
         }
+    }
+
+    // The tty of a `claude attach <id>` already running, so a second click reuses its tab.
+    private static func attachedTTY(_ id: String) -> String? {
+        let (_, out) = run("/bin/ps", ["-ax", "-o", "tty=,args="])
+        return out.split(separator: "\n").first { $0.hasSuffix(" attach \(id)") && !$0.hasPrefix("??") }
+            .flatMap { $0.split(separator: " ").first.map(String.init) }
     }
 
     struct Failure: Error {
