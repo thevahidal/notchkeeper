@@ -71,7 +71,7 @@ Turn it on in the menu bar under Plugins. When one of its events happens, Notchk
   "tool": "Bash", "target": "npm test", "risk": "medium" }
 ```
 
-`tool`, `target` and `risk` come only with `approval`. The `prompt` event fires when you send an agent a prompt and carries it as `"prompt": "…"` (up to 4,000 characters).
+`tool`, `target` and `risk` come only with `approval`. The `prompt` event fires when you send an agent a prompt and carries it as `"prompt": "…"` (up to 4,000 characters). `reply` fires at the end of every turn, even in the tab you're looking at, with the agent's last message as `"message": "…"` (up to 4,000 characters). `tick` fires once a minute and has no `session`.
 
 A plugin may answer by printing one JSON object (up to 4 KB) on stdout; anything else is ignored:
 

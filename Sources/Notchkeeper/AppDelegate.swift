@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             self?.store.pruneStale()
             self?.store.remind()
+            Plugins.emit("tick", nil)
         }
 
         // First launch: show what can be set up.
