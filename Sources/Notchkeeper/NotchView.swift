@@ -723,7 +723,7 @@ struct AppIcon: View {
     let session: Session
 
     var body: some View {
-        (Jump.appId(session).map(Self.icon) ?? Image(systemName: "terminal"))
+        (Jump.appId(session).map(Self.icon) ?? Image(systemName: session.isItem ? "bolt.fill" : "terminal"))
             .resizable()
             .frame(width: 18, height: 18)
             .foregroundStyle(.white.opacity(0.6))
@@ -823,6 +823,53 @@ struct SnoozeMenu: View {
     private static var tomorrowMorning: Date {
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         return Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) ?? tomorrow
+    }
+}
+
+// The conversation so far: your messages on the right, Claude's on the left, tool calls as quiet one-liners.
+struct ChatView: View {
+    let lines: [ChatLine]
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(lines) { line in
+                        switch line.role {
+                        case .you:
+                            Text(line.text)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white)
+                                .lineLimit(4)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Palette.plan.opacity(0.28), in: RoundedRectangle(cornerRadius: 11))
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                                .padding(.leading, 60)
+                        case .claude:
+                            Text((try? AttributedString(markdown: line.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+                                 ?? AttributedString(line.text))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .lineLimit(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.trailing, 30)
+                        case .tool:
+                            Text("⏺ " + line.text)
+                                .font(.system(size: 10.5, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    Color.clear.frame(height: 1).id("end")
+                }
+            }
+            .onAppear { proxy.scrollTo("end", anchor: .bottom) }
+            .onChange(of: lines.count) { proxy.scrollTo("end", anchor: .bottom) }
+        }
+        .frame(maxHeight: .infinity)
+        .mask(LinearGradient(colors: [.clear, .black, .black], startPoint: .top, endPoint: .init(x: 0.5, y: 0.12)))
     }
 }
 
@@ -973,8 +1020,9 @@ struct ReplyCard: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.4))
             }
+            if !store.chat.isEmpty { ChatView(lines: store.chat) }
             Text(working ? "Still working. Your message is sent when this turn ends, unless it ends with a question." + queuedNote
-                         : session.question ?? session.detail)
+                         : session.question ?? (store.chat.isEmpty ? session.detail : ""))
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.6))
                 .lineLimit(2)

@@ -20,6 +20,7 @@ enum Jump {
 
     // The app the session runs in, if known: the desktop app, its terminal, or the app its environment names.
     static func appId(_ session: Session) -> String? {
+        if session.isItem { return nil }
         if session.tty == nil { return "com.anthropic.claudefordesktop" }
         return session.term.flatMap { terminals[$0] } ?? session.app
     }

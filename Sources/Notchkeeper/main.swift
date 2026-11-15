@@ -1,5 +1,10 @@
 import AppKit
 
+// `notchkeeper notify …` / `notchkeeper run -- …`: post to the running app and exit.
+if let verb = CommandLine.arguments.dropFirst().first, verb == "notify" || verb == "run" {
+    exit(Items.main(Array(CommandLine.arguments.dropFirst())))
+}
+
 // For scripts and package managers: edit the hooks and exit, without starting the app.
 if let flag = CommandLine.arguments.dropFirst().first, flag == "--connect" || flag == "--disconnect" {
     // An optional second argument names the agent: claude (default), codex or gemini.

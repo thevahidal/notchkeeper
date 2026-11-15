@@ -5,6 +5,8 @@ import ServiceManagement
 final class StatusMenu: NSObject, NSMenuDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let store: SessionStore
+    // Re-places the notch when the display setting changes.
+    var onPlacementChange: (() -> Void)?
 
     init(store: SessionStore) {
         self.store = store
@@ -30,6 +32,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         add(menu, "Sounds", #selector(toggleSounds)).state = store.sounds ? .on : .off
         add(menu, "Quiet Mode", #selector(toggleQuiet)).state = store.quiet ? .on : .off
+        menu.addItem(pluginsItem())
+        add(menu, "Show on Active Display", #selector(toggleFollow)).state = NotchPanel.followsActiveDisplay ? .on : .off
         add(menu, "Approval Log…", #selector(openLog))
         add(menu, "Launch at Login", #selector(toggleLogin)).state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
@@ -83,6 +87,41 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func newAgent() { store.openNewAgent() }
+    // Plugins submenu: one checkable row per plugin found, plus the folder and the bundled examples.
+    private func pluginsItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Plugins", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        let plugins = Plugins.all
+        if plugins.isEmpty { sub.addItem(NSMenuItem(title: "No plugins yet", action: nil, keyEquivalent: "")) }
+        for plugin in plugins {
+            let row = add(sub, plugin.name, #selector(togglePlugin(_:)))
+            row.representedObject = plugin.id
+            row.state = Plugins.enabled.contains(plugin.id) ? .on : .off
+            row.toolTip = plugin.description
+        }
+        sub.addItem(.separator())
+        add(sub, "Add Example Plugins", #selector(addExamples))
+        add(sub, "Open Plugins Folder", #selector(openPlugins))
+        item.submenu = sub
+        return item
+    }
+
+    @objc private func togglePlugin(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        if Plugins.enabled.contains(id) { Plugins.enabled.remove(id) } else { Plugins.enabled.insert(id) }
+    }
+
+    @objc private func addExamples() { Plugins.installExamples(); openPlugins() }
+
+    @objc private func openPlugins() {
+        try? FileManager.default.createDirectory(atPath: Plugins.folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        NSWorkspace.shared.open(URL(fileURLWithPath: Plugins.folder))
+    }
+
+    @objc private func toggleFollow() {
+        NotchPanel.followsActiveDisplay.toggle()
+        onPlacementChange?()
+    }
     @objc private func toggleSounds() { store.sounds.toggle() }
     @objc private func toggleQuiet() { store.quiet.toggle() }
 

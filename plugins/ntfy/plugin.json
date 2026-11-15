@@ -1,0 +1,6 @@
+{
+  "name": "Phone (ntfy)",
+  "description": "Pushes 'needs you' and 'done' to your phone through ntfy.sh. Sends only the agent's title. Needs topic.txt.",
+  "run": "run.sh",
+  "on": ["needs-you", "done"]
+}

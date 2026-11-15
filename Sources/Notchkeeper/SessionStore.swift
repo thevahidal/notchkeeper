@@ -13,9 +13,14 @@ struct Session: Identifiable, Codable {
     var repo: String
     var title = ""
     var cwd = ""
+    // Claude's transcript, checked to be under ~/.claude/projects.
+    var transcript: String?
     var branch: String?
     // Started with `claude --bg`: no terminal tab of its own, you attach to it.
     var background = false
+    // Not an agent: something posted with `notchkeeper notify` or `run`. Clicking opens its link, if any.
+    var isItem = false
+    var url: String?
     var tty: String?
     var term: String?
     // Bundle id of the app the terminal runs in, from the hook's environment; a fallback for terminals Notchkeeper can't script.
@@ -138,7 +143,11 @@ final class SessionStore: ObservableObject {
     @Published var quiet = UserDefaults.standard.bool(forKey: "quiet") {
         didSet { UserDefaults.standard.set(quiet, forKey: "quiet") }
     }
-    @Published var replyTo: Session?
+    @Published var replyTo: Session? {
+        didSet { if replyTo?.id != oldValue?.id { loadChat() } }
+    }
+    // The recent conversation of the session you're replying to.
+    @Published var chat: [ChatLine] = []
     @Published var draft = ""
     // First launch: ask before touching ~/.claude/settings.json.
     @Published var offerConnect = false
@@ -206,7 +215,13 @@ final class SessionStore: ObservableObject {
     }
 
     func jump(to session: Session) {
-        if session.background { ClaudeCLI.attach(session.id) } else { Jump.to(session) }
+        if session.isItem {
+            if let url = session.url.flatMap(URL.init) { NSWorkspace.shared.open(url) }
+        } else if session.background {
+            ClaudeCLI.attach(session.id)
+        } else {
+            Jump.to(session)
+        }
         markSeen(session.id)
     }
 
@@ -282,6 +297,7 @@ final class SessionStore: ObservableObject {
         let agent = (raw["agent"] as? String).flatMap(Agent.init).flatMap { $0 == .claude ? nil : $0 }
         let event = agent == .gemini ? Self.fromGemini(raw) : raw
         guard let id = event["session_id"] as? String, let name = event["hook_event_name"] as? String else { return }
+        if name == "Item" { return applyItem(id, event) }
         let repo = ((event["cwd"] as? String ?? "") as NSString).lastPathComponent
         let agentId = event["agent_id"] as? String
 
@@ -304,6 +320,10 @@ final class SessionStore: ObservableObject {
                 expires: Date().addingTimeInterval(Self.approvalTimeout), reply: reply
             )
             approvals.append(approval)
+            if let session = sessions.first(where: { $0.id == id }) {
+                Plugins.emit("approval", session, extra: ["tool": approval.tool, "target": approval.target,
+                                                          "risk": ["low", "medium", "high"][risk.level.rawValue]])
+            }
             // The hook gives up after 30s, so drop the card just before that.
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.approvalTimeout) { [weak self] in
                 guard let self, self.approvals.contains(where: { $0.id == approval.id }) else { return }
@@ -368,6 +388,7 @@ final class SessionStore: ObservableObject {
         if state == .working { sessions[i].question = nil }
         sessions[i].lastSeen = Date()
         if let cwd = event["cwd"] as? String { sessions[i].cwd = cwd }
+        if let path = Self.claudeTranscript(event["transcript_path"] as? String) { sessions[i].transcript = path }
         // Only notchkeeper-hook.sh sends these; "??" means no terminal, i.e. the desktop app.
         if let tty = event["tty"] as? String {
             // It ends up inside an AppleScript, so accept only the "ttys012" shape.
@@ -389,10 +410,16 @@ final class SessionStore: ObservableObject {
         // An AppleScript round trip, so only when it matters.
         let looking = (name == "Stop" || (entered && state != .working)) && Jump.isFrontmost(sessions[i])
         if name == "Stop" && looking { markSeen(id) }
-        if entered && state != .working && !looking { chime(state) }
+        if entered && state != .working && !looking { alert(i) }
     }
 
     private var lastChime = Date.distantPast
+
+    // An agent just started waiting on you or finished: sound, and tell any plugins that asked.
+    private func alert(_ i: Int) {
+        chime(sessions[i].state)
+        Plugins.emit(sessions[i].state == .needsYou ? "needs-you" : "done", sessions[i])
+    }
 
     func chime(_ state: SessionState) {
         guard sounds, Date().timeIntervalSince(lastChime) > 2 else { return }
@@ -549,9 +576,7 @@ final class SessionStore: ObservableObject {
 
     // Titles can change, so this is re-read on every Stop. Transcripts can be large, hence the background queue.
     private func loadTitle(_ id: String, transcript path: String?, turnEnded: Bool) {
-        // Events could name any file; only read Claude's own transcripts.
-        let projects = NSHomeDirectory() + "/.claude/projects/"
-        guard let path = (path as NSString?)?.standardizingPath, path.hasPrefix(projects), path.hasSuffix(".jsonl") else { return }
+        guard let path = Self.claudeTranscript(path) else { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let (title, question, model) = Self.readTranscript(path)
             DispatchQueue.main.async {
@@ -564,7 +589,7 @@ final class SessionStore: ObservableObject {
                     self.sessions[i].state = .needsYou
                     self.sessions[i].since = Date()
                     self.sessions[i].seen = false
-                    self.chime(.needsYou)
+                    self.alert(i)
                 }
                 if turnEnded && self.sessions[i].state == .yourTurn { self.sendQueued(i) }
             }
@@ -631,6 +656,50 @@ final class SessionStore: ObservableObject {
         }
         let removed = lines("old_string"), added = lines("new_string") + lines("content")
         return removed.prefix(3).map { ("-", $0) } + added.prefix(removed.isEmpty ? 5 : 3).map { ("+", $0) }
+    }
+
+    private func applyItem(_ id: String, _ event: [String: Any]) {
+        guard id.hasPrefix("item:"), let title = event["title"] as? String else { return }
+        if event["state"] as? String == "remove" { return sessions.removeAll { $0.id == id } }
+        let state: SessionState = switch event["state"] as? String {
+        case "needs-you": .needsYou
+        case "done": .yourTurn
+        default: .working
+        }
+        let source = (event["source"] as? String).flatMap { $0.range(of: "^[a-z0-9-]{1,20}$", options: .regularExpression) != nil ? $0 : nil } ?? "item"
+        if !sessions.contains(where: { $0.id == id }) {
+            var item = Session(id: id, repo: source, state: state, detail: "", lastSeen: Date())
+            item.isItem = true
+            sessions.append(item)
+        }
+        let i = sessions.firstIndex { $0.id == id }!
+        let entered = sessions[i].state != state || sessions[i].detail.isEmpty
+        if sessions[i].state != state { sessions[i].since = Date() }
+        sessions[i].state = state
+        sessions[i].title = String(title.prefix(120))
+        sessions[i].detail = String((event["detail"] as? String ?? "").prefix(200))
+        sessions[i].agent = source
+        sessions[i].lastSeen = Date()
+        sessions[i].seen = false
+        // Only web links; anything else (file:, custom schemes) could launch things.
+        sessions[i].url = (event["url"] as? String).flatMap { $0.hasPrefix("https://") || $0.hasPrefix("http://") ? $0 : nil }
+        if entered && state != .working { alert(i) }
+    }
+
+    // Events could name any file; only Claude's own transcripts are read.
+    static func claudeTranscript(_ path: String?) -> String? {
+        let projects = NSHomeDirectory() + "/.claude/projects/"
+        guard let path = (path as NSString?)?.standardizingPath, path.hasPrefix(projects), path.hasSuffix(".jsonl") else { return nil }
+        return path
+    }
+
+    private func loadChat() {
+        chat = []
+        guard let session = replyTo, let path = sessions.first(where: { $0.id == session.id })?.transcript else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let lines = Chat.read(path)
+            DispatchQueue.main.async { if self?.replyTo?.id == session.id { self?.chat = lines } }
+        }
     }
 
     // Gemini CLI's events, renamed to their Claude Code equivalents so the rest of the store treats them alike.

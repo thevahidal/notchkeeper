@@ -16,6 +16,7 @@ final class NotchState: ObservableObject {
     // One short line per running subagent, under its parent.
     let subagentHeight: CGFloat = 17
     let planHeight: CGFloat = 300
+    let replyHeight: CGFloat = 340
     // Five rows; the list scrolls past that.
     var maxListHeight: CGFloat { 5 * rowHeight }
 
@@ -32,7 +33,9 @@ final class NotchState: ObservableObject {
         if let a = store.approvals.first {
             return 150 + (a.sessionRules.isEmpty ? 0 : 20) + (a.risk.level == .low ? 0 : 20) + (a.diff.isEmpty ? 0 : CGFloat(a.diff.count) * 15 - 18)
         }
-        if store.offerConnect || store.replyTo != nil { return 150 }
+        if store.offerConnect { return 150 }
+        // With a transcript, the reply card shows the conversation above the field.
+        if let session = store.replyTo { return store.sessions.first { $0.id == session.id }?.transcript == nil ? 150 : replyHeight }
         if store.newAgent != nil { return 186 }
         if store.plan != nil { return planHeight }
         return store.catchUp.map { 92 + CGFloat(min($0.items.count, 4)) * 44 }
@@ -57,7 +60,7 @@ final class NotchState: ObservableObject {
     }
 
     var windowSize: CGSize {
-        CGSize(width: expandedWidth, height: notch.height + max(planHeight, headerHeight + 14 + maxListHeight))
+        CGSize(width: expandedWidth, height: notch.height + max(replyHeight, headerHeight + 14 + maxListHeight))
     }
 }
 
@@ -86,11 +89,42 @@ final class NotchPanel: NSPanel {
 
         // Polling the pointer needs no permissions, unlike global event monitors.
         hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in self?.checkHover() }
+        screenTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.followActiveScreen() }
+    }
+
+    private var screenTimer: Timer?
+    private var placedOn: CGDirectDisplayID?
+
+    // Opt-in: sit on the display you're working on, e.g. an external monitor next to the MacBook.
+    static var followsActiveDisplay: Bool {
+        get { UserDefaults.standard.bool(forKey: "followActiveDisplay") }
+        set { UserDefaults.standard.set(newValue, forKey: "followActiveDisplay") }
+    }
+
+    // The screen showing the frontmost app's front window. Window bounds need no screen-recording permission.
+    private static var activeScreen: NSScreen? {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]],
+              let front = windows.first(where: { $0[kCGWindowOwnerPID as String] as? pid_t == pid && $0[kCGWindowLayer as String] as? Int == 0 }),
+              let bounds = (front[kCGWindowBounds as String] as? NSDictionary).flatMap({ CGRect(dictionaryRepresentation: $0) }) else { return nil }
+        // Window bounds are top-left based; screens are bottom-left based.
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        let center = CGPoint(x: bounds.midX, y: primaryHeight - bounds.midY)
+        return NSScreen.screens.first { $0.frame.contains(center) }
+    }
+
+    private func followActiveScreen() {
+        // Never move out from under you mid-hover or while a card is up.
+        guard Self.followsActiveDisplay, !state.expanded, state.cardHeight(store) == nil,
+              let screen = Self.activeScreen, screen.displayID != placedOn else { return }
+        place()
     }
 
     func place() {
-        let screen = NSScreen.screens.first { $0.notchSize != nil } ?? NSScreen.main
+        let notched = NSScreen.screens.first { $0.notchSize != nil }
+        let screen = Self.followsActiveDisplay ? Self.activeScreen ?? notched ?? NSScreen.main : notched ?? NSScreen.main
         guard let screen else { return }
+        placedOn = screen.displayID
         // No notch (e.g. an external display): hang a small bar from the middle of the menu bar.
         state.notch = screen.notchSize ?? CGSize(width: 0, height: max(24, screen.frame.maxY - screen.visibleFrame.maxY))
         let size = state.windowSize
@@ -130,6 +164,8 @@ final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
 }
 
 extension NSScreen {
+    var displayID: CGDirectDisplayID? { deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID }
+
     var notchSize: CGSize? {
         guard safeAreaInsets.top > 0, let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea else { return nil }
         return CGSize(width: frame.width - left.width - right.width, height: safeAreaInsets.top)

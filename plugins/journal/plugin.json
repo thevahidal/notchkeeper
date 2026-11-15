@@ -1,0 +1,6 @@
+{
+  "name": "Journal",
+  "description": "Keeps a daily Markdown log of what your agents did, in ~/.notchkeeper/journal.",
+  "run": "run.sh",
+  "on": ["needs-you", "done", "approval"]
+}

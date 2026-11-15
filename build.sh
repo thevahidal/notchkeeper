@@ -11,6 +11,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/hooks"
 swiftc -swift-version 5 -O -target arm64-apple-macosx14.0 Sources/Notchkeeper/*.swift -o "$APP/Contents/MacOS/Notchkeeper"
 cp hooks/notchkeeper-hook.sh hooks/notchkeeper-approve.sh "$APP/Contents/Resources/hooks/"
 cp assets/Notchkeeper.icns "$APP/Contents/Resources/"
+cp -R plugins "$APP/Contents/Resources/plugins"
 
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = NotchPanel(store: store)
         panel?.orderFrontRegardless()
         menu = StatusMenu(store: store)
+        menu?.onPlacementChange = { [weak self] in self?.panel?.place() }
 
         HookInstaller.refreshScripts()
         store.restore()
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let privateDir: [FileAttributeKey: Any] = [.posixPermissions: 0o700]
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: privateDir)
         try? FileManager.default.setAttributes(privateDir, ofItemAtPath: dir.path)
+        linkCommand(in: dir)
         do {
             server = try EventServer(path: dir.appendingPathComponent("notchkeeper.sock").path) { [weak self] event, reply in
                 self?.store.apply(event, reply: reply)
@@ -42,5 +44,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in self?.panel?.place() }
+    }
+
+    // ~/.notchkeeper/bin/notchkeeper → this app, so `notchkeeper notify` / `run` work wherever the app lives.
+    private func linkCommand(in dir: URL) {
+        guard let executable = Bundle.main.executablePath else { return }
+        let bin = dir.appendingPathComponent("bin")
+        let link = bin.appendingPathComponent("notchkeeper").path
+        let fm = FileManager.default
+        try? fm.createDirectory(at: bin, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        guard (try? fm.destinationOfSymbolicLink(atPath: link)) != executable else { return }
+        try? fm.removeItem(atPath: link)
+        try? fm.createSymbolicLink(atPath: link, withDestinationPath: executable)
     }
 }
