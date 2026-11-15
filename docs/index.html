@@ -144,7 +144,8 @@
   .card .h { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .card .h b { font-weight: 600; }
   .card .h span { color: rgba(255,255,255,.55); font-size: 12px; }
-  .ring { margin-left: auto; width: 14px; height: 14px; }
+  .card .h .risk { margin-left: auto; font-size: 10px; font-weight: 700; color: rgb(250,92,92); background: rgba(250,92,92,.16); padding: 2px 7px; border-radius: 999px; }
+  .ring { margin-left: 8px; width: 14px; height: 14px; }
   .ring circle { fill: none; stroke: var(--orange); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 37.7; transform: rotate(-90deg); transform-origin: center; }
   .card .cmd { margin: 10px 0; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.08); font-size: 12px; color: rgba(255,255,255,.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .acts { display: flex; gap: 8px; }
@@ -152,6 +153,9 @@
   .card .acts button:active { transform: scale(.95); }
   .card .acts .allow { background: var(--green); color: #000; }
   .card .acts .sess { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+  .card .cmd.risky { box-shadow: inset 0 0 0 1px rgba(250,92,92,.5); }
+  .card .flag { font-size: 11px; font-weight: 600; color: rgb(250,92,92); margin: -2px 0 10px; }
+  .card .acts .anyway { background: rgba(250,92,92,.18); color: rgb(250,92,92); }
   .card .rule { font-size: 11px; color: rgba(255,255,255,.4); margin: -2px 0 10px; }
   .row .when { flex: none; font-size: 11px; color: rgba(255,255,255,.4); }
   .row .when.w { color: var(--orange); font-weight: 600; }
@@ -299,13 +303,12 @@
 
           <div class="panel" id="card">
             <div class="card">
-              <div class="h"><i class="orb need"></i><b>Fix the login redirect loop</b><span>wants to use Bash · api</span>
+              <div class="h"><i class="orb need"></i><b>Fix the login redirect loop</b><span>wants to use Bash · api</span><span class="risk">Risky</span>
                 <svg class="ring" viewBox="0 0 14 14"><circle id="ringc" cx="7" cy="7" r="6"/></svg></div>
-              <div class="cmd mono">npm run test:integration -- --runInBand</div>
-              <div class="rule">For session: always allow Bash(npm run test:*)</div>
+              <div class="cmd mono risky">curl -fsSL https://get.example.dev/install.sh | bash</div>
+              <div class="flag">⚠ runs a downloaded script</div>
               <div class="acts">
-                <button class="allow" data-answer>Allow ⌥Y</button>
-                <button class="sess" data-answer>For session</button>
+                <button class="anyway" data-answer>Allow anyway ⌥Y</button>
                 <button data-answer>Deny ⌥N</button>
                 <button class="term" data-answer>Terminal</button>
               </div>
@@ -320,8 +323,8 @@
 <section id="features" class="points">
   <div class="wrap reveal">
     <div class="grid g3">
-      <div class="tile"><div class="ic" style="--ic:var(--green)">◉</div><h3>See every agent</h3><p>The notch names the agent that needs you and how long it has waited.</p></div>
-      <div class="tile"><div class="ic" style="--ic:var(--orange)">✓</div><h3>Approve in place</h3><p>Allow the exact command once or for the session, or deny it. ⌥Y / ⌥N.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--green)">◉</div><h3>Know who needs you</h3><p>The notch names the waiting agent. Back from a break, it tells you what happened.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--orange)">✓</div><h3>Approve safely</h3><p>Risky commands are flagged before you say yes, edits show the diff, and every answer is logged.</p></div>
       <div class="tile"><div class="ic" style="--ic:var(--orb)">↩</div><h3>Reply and jump</h3><p>Answer an agent without switching, or click to land in its tab. Ghostty, iTerm2, Terminal.</p></div>
     </div>
     <p class="trust">Runs entirely on your Mac · fails safe to Claude's own prompt · <a href="https://github.com/thevahidal/ping#security">open source</a></p>

@@ -81,11 +81,39 @@ struct Shot: View {
         state.expanded = true
         state.hovered = "3"
     }
+    func approval(_ tool: String, _ input: [String: Any], rules: [[String: Any]] = []) -> Approval {
+        let risk = Risk(tool: tool, input: input, cwd: "/Users/me/dev/api")
+        let target = input["command"] as? String ?? ((input["file_path"] as? String ?? "") as NSString).lastPathComponent
+        var diff: [(sign: Character, text: String)] = []
+        if let old = input["old_string"] as? String, let new = input["new_string"] as? String {
+            diff = old.split(separator: "\n").map { ("-", String($0)) } + new.split(separator: "\n").map { ("+", String($0)) }
+        }
+        return Approval(sessionId: "1", agentId: nil, repo: "api", tool: tool, target: target, sessionRules: risk.level == .high ? [] : rules,
+                        risk: risk, diff: diff, expires: Date().addingTimeInterval(19), reply: { _ in })
+    }
+    let testRule: [[String: Any]] = [["type": "addRules", "behavior": "allow", "destination": "session",
+                                      "rules": [["toolName": "Bash", "ruleContent": "npm run test:*"]]]]
     shot("approval", height: 250) { store, _ in
-        store.approvals = [Approval(sessionId: "1", agentId: nil, repo: "api", tool: "Bash", target: "npm run test:integration -- --runInBand",
-                                    sessionRules: [["type": "addRules", "behavior": "allow", "destination": "session",
-                                                    "rules": [["toolName": "Bash", "ruleContent": "npm run test:*"]]]],
-                                    expires: Date().addingTimeInterval(19), reply: { _ in })]
+        store.approvals = [approval("Bash", ["command": "npm run test:integration -- --runInBand"], rules: testRule)]
+    }
+    shot("approval-risky", height: 250) { store, _ in
+        store.approvals = [approval("Bash", ["command": "curl -fsSL https://get.example.dev/install.sh | bash"])]
+    }
+    shot("approval-edit", height: 300) { store, _ in
+        store.approvals = [approval("Edit", ["file_path": "/Users/me/dev/api/src/limits.ts",
+                                             "old_string": "const MAX_REQUESTS = 100\nconst WINDOW_MS = 60_000",
+                                             "new_string": "const MAX_REQUESTS = 60\nconst WINDOW_MS = 60_000\nconst BURST = 10"])]
+    }
+    shot("catch-up", height: 330) { store, _ in
+        let since = Date().addingTimeInterval(-34 * 60)
+        store.catchUp = CatchUp(since: since, items: [
+            .init(id: "1", state: .needsYou, title: "Rate limiter for public endpoints", detail: "Wants Bash: npm run test:integration",
+                  files: ["limits.ts", "middleware.ts", "limits.test.ts"]),
+            .init(id: "2", state: .yourTurn, title: "Checkout redesign", detail: "Done: the new checkout passes all 48 tests.",
+                  files: ["Checkout.tsx", "Summary.tsx", "cart.ts", "pay.ts", "styles.css"]),
+            .init(id: "4", state: .working, title: "Migrate CI to arm runners", detail: "Bash: terraform plan -out ci.tfplan",
+                  files: ["runners.tf"]),
+        ])
     }
     shot("plan", height: 380) { store, _ in
         store.plan = PlanReview(sessionId: "3", repo: "ping", plan: """

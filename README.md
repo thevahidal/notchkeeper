@@ -7,7 +7,8 @@ Your Claude Code agents, one glance away. Ping lives in your MacBook's notch and
 <p align="center">
   <img src="docs/img/collapsed.png" alt="Collapsed notch: one dot per agent, and the name of the agent that needs you" width="760">
   <img src="docs/img/expanded.png" alt="Expanded notch: every agent with its state, how long it has waited, branch and model" width="760">
-  <img src="docs/img/approval.png" alt="Approval card: allow once, allow for this session, or deny" width="760">
+  <img src="docs/img/approval-risky.png" alt="Approval card flagging a risky command: runs a downloaded script" width="760">
+  <img src="docs/img/catch-up.png" alt="While you were away: what each agent did and who is waiting" width="760">
 </p>
 
 ## What it does
@@ -15,6 +16,10 @@ Your Claude Code agents, one glance away. Ping lives in your MacBook's notch and
 - **Live status in the notch.** One dot per agent: violet while working, green when it's your turn, orange when it needs you. Next to the notch, Ping names the agent that needs you (✋ api), or shows a soft pulse while they all just work. A glow under the notch shows the overall mood. With more than four agents the dots turn into counts.
 - **Hover to expand.** Each agent gets a row with its session title, what it's doing right now, how long it has waited on you, repo and git branch, permission mode (ask, auto, plan, edits, bypass), and model.
 - **Approve from the notch.** When Claude asks for permission, a card shows the command. Allow once, allow **for this session** (Claude's own "don't ask again" rule, kept for this session only), Deny, or hand it to the terminal. ⌥Y and ⌥N work while the card is up.
+- **Risk flags.** Before you approve, Ping reads the command or edit and flags what looks dangerous: deleting outside the project, running a downloaded script, force-pushing, touching keys, `.env` or shell config, `sudo`. Amber means check it, red means risky. On a red card, Allow becomes "Allow anyway", "for session" isn't offered, and clicks and ⌥Y wait 1.5 seconds. These are heuristics: no flag doesn't mean safe.
+- **See the change.** Edit and Write cards show the lines removed and added, not just the file name.
+- **Approval log.** Every answer you give from the notch, with its risk, goes to `~/.ping/approvals.log` (menu bar → Approval Log…). Local only.
+- **While you were away.** Step away for five minutes or more and, when you're back, the notch opens once with what each agent did: who finished, who's waiting on you, and which files they edited.
 - **Plans.** When Claude finishes a plan, Ping shows it, formatted, and takes you to the session to approve it.
 - **Questions.** When a turn ends with a question, the row turns orange and shows the question.
 - **Sounds.** A ping when an agent needs you, a soft pop when one finishes, and a reminder every few minutes if you've stepped away while one is stuck. Silent for the tab you're already looking at.
@@ -97,7 +102,7 @@ Ping sits in the path of your agent's permission prompts, so it's built to fail 
 
 **What data goes where**
 - Hook events contain your prompts, the commands Claude runs and the contents of files it edits. They go only to Ping, over a Unix socket in `~/.ping`. Nothing is sent over the network: Ping opens no TCP or UDP connections, has no telemetry and needs no account.
-- Ping writes only the socket, its hook scripts in `~/.ping/hooks`, and, when you connect or disconnect, `~/.claude/settings.json` plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
+- Ping writes only the socket, its hook scripts in `~/.ping/hooks`, the approval log `~/.ping/approvals.log` (`600`, rotated at 1 MB), and, when you connect or disconnect, `~/.claude/settings.json` plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
 
 **Approvals**
 - Ping can only answer a permission request that Claude sends it. It can't invent one or widen what Claude asked for.

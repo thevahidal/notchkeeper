@@ -17,6 +17,10 @@
 - **Sounds and quiet mode.** Ping on needs-you, pop on done, reminder when away; quiet mode hides the ears until something needs you.
 - **Fallback bar** on displays without a notch.
 - **Branch on each row**, read from `.git/HEAD`.
+- **Risk flags** on approval cards (`Risk.swift`): red/amber with reasons; red disables "for session", softens Allow and waits 1.5s.
+- **Diff preview** for Edit / Write / MultiEdit.
+- **Approval log**: `~/.ping/approvals.log`, JSON lines, 600, rotated at 1 MB.
+- **While you were away**: after 5+ minutes idle, one card on return with who finished, who waits and files edited. Logic not exercised live yet (needs real idle time).
 - **App icon** (`tools/icon.sh`) and **screenshots** rendered from the real views (`tools/screenshots.sh`).
 
 ## Open
@@ -26,6 +30,8 @@
 - **brew uninstall hang.** In one test `brew uninstall` hung on the cask's `quit:` step with two copies of Ping running. Check with one copy.
 - **tmux.** Jump and reply via `tmux send-keys` to the pane.
 - **Clickable options.** AskUserQuestion answers from the notch (needs a reliable send path per terminal).
+
+- **Rename.** "Ping" collides with Ping Island (same kind of app, cask `ping-island`) and the `ping` command. Notchkeeper is free on GitHub, Homebrew and the App Store; Heed (Mac reminder app), Lookout (security company), Warden (taken repos) are not. Renaming changes the bundle id, `~/.ping`, the repo and the tap.
 
 ## Ideas
 - Deny with feedback: a text field whose message goes back to Claude.
