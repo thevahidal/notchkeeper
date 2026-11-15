@@ -33,7 +33,7 @@ enum Items {
                      url: options["url"], source: options["source"] ?? "notify")
     }
 
-    private static func event(id: String, title: String, state: String, detail: String, url: String?, source: String) -> [String: Any] {
+    static func event(id: String, title: String, state: String, detail: String, url: String?, source: String) -> [String: Any] {
         var event: [String: Any] = ["hook_event_name": "Item", "session_id": "item:\(source):\(id)", "source": source,
                                     "title": title, "state": state, "detail": detail, "cwd": FileManager.default.currentDirectoryPath]
         if let url { event["url"] = url }
@@ -67,7 +67,7 @@ enum Items {
         return code
     }
 
-    private static func duration(_ seconds: TimeInterval) -> String {
+    static func duration(_ seconds: TimeInterval) -> String {
         let s = Int(seconds)
         return s < 60 ? "\(s)s" : s < 3600 ? "\(s / 60)m \(s % 60)s" : "\(s / 3600)h \(s % 3600 / 60)m"
     }

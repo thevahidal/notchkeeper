@@ -15,6 +15,12 @@ enum AuditLog {
             "risk": ["low", "medium", "high"][approval.risk.level.rawValue],
             "reasons": approval.risk.reasons,
         ]
+        append(entry, to: path)
+        ActivityLog.record("approval", desk: approval.repo, session: approval.sessionId, detail: "\(decision): \(approval.tool) \(approval.target)")
+    }
+
+    // One JSON line, in a file only you can read, rotated past 1 MB.
+    static func append(_ entry: [String: Any], to path: String) {
         guard let data = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys, .withoutEscapingSlashes]) else { return }
         let fm = FileManager.default
         // Keep it small: past 1 MB, the old log moves aside and a new one starts.
@@ -31,8 +37,8 @@ enum AuditLog {
         try? file.close()
     }
 
-    // Opens as plain text; the file only exists after the first answer.
-    static func open() {
+    // Opens as plain text; the file only exists after the first line.
+    static func open(_ path: String = path) {
         if !FileManager.default.fileExists(atPath: path) {
             FileManager.default.createFile(atPath: path, contents: nil, attributes: [.posixPermissions: 0o600])
         }

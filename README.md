@@ -135,7 +135,7 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 
 **What data goes where**
 - Hook events contain your prompts, the commands Claude runs and the contents of files it edits. They go only to Notchkeeper, over a Unix socket in `~/.notchkeeper`. Nothing is sent over the network: Notchkeeper opens no TCP or UDP connections, has no telemetry and needs no account.
-- Notchkeeper writes only the socket, its hook scripts in `~/.notchkeeper/hooks`, the approval log `~/.notchkeeper/approvals.log` (`600`, rotated at 1 MB), the saved session list `~/.notchkeeper/sessions.json` (`600`; it holds titles and recent activity), and, when you connect or disconnect an agent, that agent's settings file (`~/.claude/settings.json`, `~/.codex/hooks.json` or `~/.gemini/settings.json`) plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
+- Notchkeeper writes only the socket, its hook scripts in `~/.notchkeeper/hooks`, the approval log `~/.notchkeeper/approvals.log` and the activity log `~/.notchkeeper/activity.log` (both `600`, rotated at 1 MB; turn the activity log off in Settings), the saved session list `~/.notchkeeper/sessions.json` (`600`; it holds titles and recent activity), and, when you connect or disconnect an agent, that agent's settings file (`~/.claude/settings.json`, `~/.codex/hooks.json` or `~/.gemini/settings.json`) plus a backup. It never rewrites a settings file it can't parse. It reads transcripts only from `~/.claude/projects/`.
 
 **Approvals**
 - Notchkeeper can only answer a permission request that Claude sends it. It can't invent one or widen what Claude asked for.

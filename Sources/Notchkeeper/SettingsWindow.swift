@@ -7,6 +7,20 @@ final class SettingsModel: ObservableObject {
     let store: SessionStore
     var onPlacementChange: (() -> Void)?
     @Published var error: String?
+    @Published var pane: Pane = .office
+    @Published var desk: String?
+
+    enum Pane: String, CaseIterable {
+        case office = "Office", watches = "Watches", settings = "Settings"
+
+        var icon: String {
+            switch self {
+            case .office: "building.2"
+            case .watches: "eye"
+            case .settings: "gearshape"
+            }
+        }
+    }
 
     init(store: SessionStore) { self.store = store }
 
@@ -105,6 +119,15 @@ struct SettingsView: View {
                 Text("A plugin runs its script when an agent needs you, finishes, or asks for approval. Each one is off until you turn it on.")
             }
 
+            Section {
+                Toggle("Keep an activity log", isOn: Binding(get: { ActivityLog.enabled }, set: { ActivityLog.enabled = $0; model.refresh() }))
+                Button("Open Activity Log") { AuditLog.open(ActivityLog.path) }
+            } header: {
+                Text("Activity")
+            } footer: {
+                Text("What each agent did today: states, edits and approvals, in ~/.notchkeeper/activity.log. Only you can read it, and it never leaves this Mac.")
+            }
+
             Section("Approvals") {
                 LabeledContent("Shortcuts", value: "⌥Y allow · ⌥N deny")
                 Button("Open Approval Log") { AuditLog.open() }
@@ -127,8 +150,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
-        .frame(minHeight: 720)
     }
 
     @ViewBuilder
@@ -156,14 +177,36 @@ struct SettingsView: View {
     }
 }
 
+struct MainView: View {
+    @ObservedObject var model: SettingsModel
+    let watches: Watches
+
+    var body: some View {
+        NavigationSplitView {
+            List(SettingsModel.Pane.allCases, id: \.self, selection: Binding(get: { model.pane }, set: { if let p = $0 { model.pane = p } })) { pane in
+                Label(pane.rawValue, systemImage: pane.icon)
+            }
+            .navigationSplitViewColumnWidth(160)
+        } detail: {
+            switch model.pane {
+            case .office: OfficeView(model: model, store: model.store)
+            case .watches: WatchesView(watches: watches)
+            case .settings: SettingsView(model: model, store: model.store)
+            }
+        }
+        .frame(minWidth: 700, minHeight: 600)
+    }
+}
+
 final class SettingsWindow {
     private static var window: NSWindow?
 
-    static func show(_ model: SettingsModel) {
+    static func show(_ model: SettingsModel, _ watches: Watches, pane: SettingsModel.Pane? = nil) {
+        if let pane { model.pane = pane }
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model, store: model.store)))
-            window.title = "Notchkeeper Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            let window = NSWindow(contentViewController: NSHostingController(rootView: MainView(model: model, watches: watches)))
+            window.title = "Notchkeeper"
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
             window.center()
             // Settings can change outside the app (an agent's file, the plugins folder).

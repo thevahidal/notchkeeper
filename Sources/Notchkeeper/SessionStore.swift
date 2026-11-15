@@ -44,6 +44,9 @@ struct Session: Identifiable, Codable {
     var since = Date()
     var detail: String
     var lastSeen: Date
+
+    // The project it works in. Items show their source in the notch, but sit at the folder they ran in.
+    var desk: String { isItem && !cwd.isEmpty ? (cwd as NSString).lastPathComponent : repo }
 }
 
 // A pane inside a multiplexer or a scriptable terminal, for exact jumps and replies.
@@ -333,6 +336,7 @@ final class SessionStore: ObservableObject {
         }
 
         if name == "SessionEnd" {
+            if let session = sessions.first(where: { $0.id == id }) { ActivityLog.record("end", session) }
             queued[id] = nil
             sessions.removeAll { $0.id == id }
             return
@@ -405,6 +409,7 @@ final class SessionStore: ObservableObject {
             if let model = event["model"] as? String { sessions[i].model = model }
         }
         if let effort = (event["effort"] as? [String: Any])?["level"] as? String { sessions[i].effort = effort }
+        if entered { ActivityLog.record(state.rawValue, sessions[i]) }
         // A new event is unseen, unless it finished in the tab you're already looking at.
         sessions[i].seen = false
         // An AppleScript round trip, so only when it matters.
@@ -433,6 +438,7 @@ final class SessionStore: ObservableObject {
         let hourAgo = Date().addingTimeInterval(-3600)
         sessions[i].edited = sessions[i].edited.filter { $0.value > hourAgo }
         sessions[i].edited[file] = Date()
+        ActivityLog.record("edit", desk: sessions[i].desk, session: sessions[i].id, agent: sessions[i].agent ?? "claude", detail: file)
     }
 
     static var idleSeconds: TimeInterval {
@@ -679,10 +685,12 @@ final class SessionStore: ObservableObject {
         sessions[i].title = String(title.prefix(120))
         sessions[i].detail = String((event["detail"] as? String ?? "").prefix(200))
         sessions[i].agent = source
+        if let cwd = event["cwd"] as? String { sessions[i].cwd = cwd }
         sessions[i].lastSeen = Date()
         sessions[i].seen = false
         // Only web links; anything else (file:, custom schemes) could launch things.
         sessions[i].url = (event["url"] as? String).flatMap { $0.hasPrefix("https://") || $0.hasPrefix("http://") ? $0 : nil }
+        if entered { ActivityLog.record(state.rawValue, sessions[i]) }
         if entered && state != .working { alert(i) }
     }
 

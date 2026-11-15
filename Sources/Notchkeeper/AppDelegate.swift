@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var server: EventServer?
     var menu: StatusMenu?
     lazy var settings = SettingsModel(store: store)
+    lazy var watches = Watches(store: store)
     private var saver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -47,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // First launch: show what can be set up.
         if !UserDefaults.standard.bool(forKey: "launchedBefore") {
             UserDefaults.standard.set(true, forKey: "launchedBefore")
-            showSettings()
+            showSettings(.settings)
         }
 
         NotificationCenter.default.addObserver(
@@ -55,9 +56,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in self?.panel?.place() }
     }
 
-    func showSettings() { SettingsWindow.show(settings) }
+    func showSettings(_ pane: SettingsModel.Pane? = nil) { SettingsWindow.show(settings, watches, pane: pane) }
 
-    // Opening the app again (Finder, Spotlight, `open`) shows Settings.
+    func applicationWillTerminate(_ notification: Notification) { watches.stopAll() }
+
+    // Opening the app again (Finder, Spotlight, `open`) shows the window.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showSettings()
         return false

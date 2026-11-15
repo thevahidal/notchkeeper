@@ -38,7 +38,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         add(menu, "Approval Log…", #selector(openLog))
         add(menu, "Launch at Login", #selector(toggleLogin)).state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
-        add(menu, "Settings…", #selector(openSettings), key: ",")
+        add(menu, "Open Notchkeeper…", #selector(openSettings), key: ",")
         add(menu, "Quit Notchkeeper", #selector(quit), key: "q")
     }
 
