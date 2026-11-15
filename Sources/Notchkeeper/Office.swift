@@ -12,7 +12,7 @@ struct OfficeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     today(entries)
-                    Text("Desks").font(.caption).foregroundStyle(.secondary)
+                    section("Desks").padding(.top, 4)
                     if desks.isEmpty {
                         Text("A desk appears when an agent or watch starts work in a project.").foregroundStyle(.secondary)
                     }
@@ -39,21 +39,30 @@ struct OfficeView: View {
         let denied = approvals.filter { $0.detail.hasPrefix("deny") }.count
         let files = Set(entries.filter { $0.kind == "edit" }.map { $0.desk + "/" + $0.detail }).count
         return HStack(spacing: 10) {
-            metric("\(agents.filter { $0.kind == "yourTurn" }.count)", "turns finished")
-            metric("\(approvals.count)", denied > 0 ? "approvals, \(denied) denied" : "approvals")
-            metric("\(files)", "files edited")
-            metric(waited(agents) < 60 ? "0m" : Elapsed.short(waited(agents)), "agents waited on you")
+            metric("\(agents.filter { $0.kind == "yourTurn" }.count)", "turns finished", "checkmark.circle.fill", Palette.yourTurn[0])
+            metric("\(approvals.count)", denied > 0 ? "approvals, \(denied) denied" : "approvals", "hand.raised.fill", Palette.needsYou[0])
+            metric("\(files)", "files edited", "doc.text.fill", Palette.plan)
+            metric(waited(agents) < 60 ? "0m" : Elapsed.short(waited(agents)), "waited on you", "hourglass", Palette.needsYou[1])
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func metric(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.title2.weight(.medium)).monospacedDigit()
-            Text(label).font(.caption).foregroundStyle(.secondary)
+    private func metric(_ value: String, _ label: String, _ icon: String, _ tint: Color) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 24, height: 24)
+                .background(tint.opacity(0.18), in: Circle())
+            Spacer(minLength: 0)
+            Text(value).font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
+            Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(LinearGradient(colors: [tint.opacity(0.14), tint.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing), in: shape)
+        .overlay(shape.strokeBorder(tint.opacity(0.22), lineWidth: 1))
     }
 
     // From each "needs you" to whatever came next for that session; still counting if it waits now.
@@ -83,12 +92,18 @@ struct OfficeView: View {
     private func desk(_ name: String, _ entries: [ActivityLog.Entry], selected: Bool) -> some View {
         let people = store.sessions.filter { $0.desk == name }
         let here = entries.filter { $0.desk == name }
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: people.isEmpty ? "folder" : "folder.fill")
+                    .foregroundStyle(people.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.accentColor))
                 Text(name).font(.headline).lineLimit(1)
-                Spacer()
+                Spacer(minLength: 4)
                 if let branch = people.compactMap(\.branch).first {
-                    Text(branch).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Label(branch, systemImage: "arrow.triangle.branch").font(.caption2).lineLimit(1)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(.quaternary.opacity(0.6), in: Capsule())
                 }
             }
             if people.isEmpty {
@@ -109,10 +124,11 @@ struct OfficeView: View {
                 Text("Today: \(count(turns, "turn")) · \(count(edits, "edit"))").font(.caption2).foregroundStyle(.tertiary)
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
-        .contentShape(Rectangle())
-        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary), lineWidth: selected ? 2 : 1))
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .background(selected ? AnyShapeStyle(Color.accentColor.opacity(0.10)) : AnyShapeStyle(.quaternary.opacity(0.35)), in: shape)
+        .overlay(shape.strokeBorder(selected ? AnyShapeStyle(Color.accentColor.opacity(0.8)) : AnyShapeStyle(.quaternary), lineWidth: selected ? 1.5 : 1))
+        .contentShape(shape)
     }
 
     private struct Row: Identifiable {
@@ -125,21 +141,29 @@ struct OfficeView: View {
 
     private func dayLog(_ name: String, _ entries: [ActivityLog.Entry]) -> some View {
         let rows = rows(entries.filter { $0.desk == name })
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
-            Text("\(name) today").font(.headline).padding(.bottom, 6)
+            section("\(name) today").padding(.bottom, 10)
             if rows.isEmpty {
                 Text("Nothing logged here today.").font(.caption).foregroundStyle(.secondary)
             }
-            ForEach(rows.reversed().prefix(100)) { row in
+            ForEach(Array(rows.reversed().prefix(100).enumerated()), id: \.element.id) { index, row in
+                if index > 0 { Divider().padding(.leading, 74) }
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(row.time.formatted(date: .omitted, time: .shortened)).monospacedDigit().foregroundStyle(.tertiary).frame(width: 64, alignment: .leading)
-                    Text(row.text).foregroundStyle(row.denied ? Color.red : Color.primary).textSelection(.enabled)
+                    Text(row.text).foregroundStyle(row.denied ? Palette.danger : Color.primary).textSelection(.enabled)
                 }
                 .font(.callout)
-                .padding(.vertical, 4)
-                Divider()
+                .padding(.vertical, 6)
             }
         }
+        .padding(14)
+        .background(.quaternary.opacity(0.25), in: shape)
+        .overlay(shape.strokeBorder(.quaternary, lineWidth: 1))
+    }
+
+    private func section(_ title: String) -> some View {
+        Text(title.uppercased()).font(.caption.weight(.semibold)).tracking(0.8).foregroundStyle(.secondary)
     }
 
     // One readable line per event. Edits in a row merge, and "working again" after you answer is left out.
