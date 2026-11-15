@@ -10,33 +10,59 @@ struct OfficeView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let entries = ActivityLog.today()
-            let desks = desks(entries)
-            let selected = desks.contains(model.desk ?? "") ? model.desk : desks.first
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    today(entries)
-                    allWorktrees
-                    section("Desks").padding(.top, 4)
-                    if desks.isEmpty {
-                        Text("A desk appears when an agent or watch starts work in a project.").foregroundStyle(.secondary)
+            let projects = projects(entries)
+            let selected = projects.first { $0.name == model.desk } ?? projects.first
+            GeometryReader { geo in
+                // Wide windows get the selected project's details beside the cards.
+                if geo.size.width > 980 {
+                    HStack(alignment: .top, spacing: 0) {
+                        ScrollView { overview(entries, projects, selected).padding(20) }
+                            .frame(width: geo.size.width * 0.5)
+                        Divider()
+                        ScrollView { details(selected, entries).padding(20) }
                     }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 10, alignment: .top)], spacing: 10) {
-                        ForEach(desks, id: \.self) { name in
-                            Button { model.desk = name } label: { desk(name, entries, selected: name == selected) }
-                                .buttonStyle(.plain)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            overview(entries, projects, selected)
+                            details(selected, entries)
                         }
-                    }
-                    if let selected {
-                        whereIsWork(selected)
-                        dayLog(selected, entries)
-                    }
-                    if !ActivityLog.enabled {
-                        Text("The activity log is off, so today's totals stay empty. Turn it on in Settings.").font(.caption).foregroundStyle(.secondary)
+                        .padding(20)
                     }
                 }
-                .padding(20)
-                .task(id: "\(selected ?? "")|\(context.date)") { scanner.load(selected.flatMap(folder)) }
-                .task(id: context.date) { all.load(store.knownFolders) }
+            }
+            .task(id: "\(selected?.name ?? "")|\(context.date)") { scanner.load(selected?.root) }
+            .task(id: context.date) { all.load(store.knownFolders) }
+        }
+    }
+
+    private func overview(_ entries: [ActivityLog.Entry], _ projects: [Project], _ selected: Project?) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            today(entries)
+            allWorktrees
+            section("Projects").padding(.top, 4)
+            if projects.isEmpty {
+                Text("A project appears when an agent or watch starts work in it.").foregroundStyle(.secondary)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 10, alignment: .top)], spacing: 10) {
+                ForEach(projects) { project in
+                    Button { model.desk = project.name } label: { card(project, entries, selected: project.id == selected?.id) }
+                        .buttonStyle(.plain)
+                }
+            }
+            if !ActivityLog.enabled {
+                Text("The activity log is off, so today's totals stay empty. Turn it on in Settings.").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func details(_ project: Project?, _ entries: [ActivityLog.Entry]) -> some View {
+        if let project {
+            VStack(alignment: .leading, spacing: 16) {
+                needsYou(project)
+                whereIsWork(project)
+                dayLog(project, entries)
             }
         }
     }
@@ -165,27 +191,52 @@ struct OfficeView: View {
         return total
     }
 
+    // A repo and the desks (its own folder and its worktrees) where agents worked today.
+    private struct Project: Identifiable {
+        var id: String { root ?? name }
+        let name: String
+        let root: String?
+        var desks: [String]
+    }
+
     // In the order they first showed up today, so cards don't jump around.
-    private func desks(_ entries: [ActivityLog.Entry]) -> [String] {
-        var names: [String] = []
-        for name in entries.map(\.desk) + store.sessions.map(\.desk) where !name.isEmpty && !names.contains(name) {
-            names.append(name)
+    private func projects(_ entries: [ActivityLog.Entry]) -> [Project] {
+        var desks: [String] = []
+        for name in entries.map(\.desk) + store.sessions.map(\.desk) where !name.isEmpty && !desks.contains(name) {
+            desks.append(name)
         }
-        return names
+        var roots: [String: String] = [:]
+        for desk in desks { roots[desk] = folder(desk).flatMap(Work.projectRoot) }
+        // A worktree with no agent left: look for it under the repos already known.
+        let known = Set(roots.values)
+        for desk in desks where roots[desk] == nil {
+            roots[desk] = known.first { FileManager.default.fileExists(atPath: "\($0)/.claude/worktrees/\(desk)") }
+        }
+        var projects: [Project] = []
+        for desk in desks {
+            let root = roots[desk]
+            if let i = projects.firstIndex(where: { $0.root != nil && $0.root == root }) {
+                projects[i].desks.append(desk)
+            } else {
+                projects.append(Project(name: root.map { ($0 as NSString).lastPathComponent } ?? desk, root: root, desks: [desk]))
+            }
+        }
+        return projects
     }
 
     @ViewBuilder
-    private func desk(_ name: String, _ entries: [ActivityLog.Entry], selected: Bool) -> some View {
-        let people = store.sessions.filter { $0.desk == name }
-        let here = entries.filter { $0.desk == name }
+    private func card(_ project: Project, _ entries: [ActivityLog.Entry], selected: Bool) -> some View {
+        let people = store.sessions.filter { project.desks.contains($0.desk) }
+        let here = entries.filter { project.desks.contains($0.desk) }
+        let quiet = project.desks.filter { desk in desk != project.name && !people.contains { $0.desk == desk } }.count
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: people.isEmpty ? "folder" : "folder.fill")
                     .foregroundStyle(people.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.accentColor))
-                Text(name).font(.headline).lineLimit(1)
+                Text(project.name).font(.headline).lineLimit(1)
                 Spacer(minLength: 4)
-                if let branch = people.compactMap(\.branch).first {
+                if let branch = project.root.flatMap(SessionStore.gitBranch) {
                     Label(branch, systemImage: "arrow.triangle.branch").font(.caption2).lineLimit(1)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 7).padding(.vertical, 3)
@@ -199,15 +250,21 @@ struct OfficeView: View {
             ForEach(people) { person in
                 HStack(spacing: 6) {
                     Circle().fill(Palette.orb(person.state)).frame(width: 7, height: 7)
-                    Text(who(person)).lineLimit(1)
+                    Text(person.title.isEmpty ? who(person) : person.title).lineLimit(1)
+                    if person.desk != project.name {
+                        Image(systemName: "arrow.triangle.branch").foregroundStyle(.tertiary).help("In worktree \(person.desk)")
+                    }
+                    Spacer(minLength: 4)
                     Text(status(person)).foregroundStyle(person.state == .needsYou ? .primary : .secondary).fixedSize()
                 }
                 .font(.caption)
             }
             let turns = here.filter { $0.kind == "yourTurn" && !$0.session.hasPrefix("item:") }.count
             let edits = here.filter { $0.kind == "edit" }.count
-            if turns + edits > 0 {
-                Text("Today: \(count(turns, "turn")) · \(count(edits, "edit"))").font(.caption2).foregroundStyle(.tertiary)
+            let today = turns + edits > 0 ? "Today: \(count(turns, "turn")) · \(count(edits, "edit"))" : nil
+            let rest = quiet > 0 ? count(quiet, "quiet worktree") : nil
+            if today != nil || rest != nil {
+                Text([today, rest].compactMap { $0 }.joined(separator: " · ")).font(.caption2).foregroundStyle(.tertiary)
             }
         }
         .padding(12)
@@ -223,9 +280,101 @@ struct OfficeView: View {
             ?? store.knownFolders.first { ($0 as NSString).lastPathComponent == desk }
     }
 
+    // One plain sentence per thing to act on, riskiest first.
+    private struct Nudge: Identifiable {
+        let id: String
+        let icon: String
+        let tint: Color
+        let text: String
+        var since: Date?
+        var session: Session?
+    }
+
+    private func nudges(_ project: Project) -> [Nudge] {
+        let people = store.sessions.filter { project.desks.contains($0.desk) }
+        let name = { (s: Session) in s.title.isEmpty ? self.who(s) : s.title }
+        var list: [Nudge] = []
+        for s in people where s.state == .needsYou {
+            list.append(Nudge(id: s.id, icon: "hand.raised.fill", tint: Palette.needsYou[0], text: "\(name(s)) is waiting for you: \(s.question ?? s.detail)", since: s.since, session: s))
+        }
+        // A finished turn that ends on a question is easy to lose among many agents.
+        for s in people where s.state == .yourTurn && !s.ended && (s.question != nil || s.detail.hasSuffix("?")) {
+            list.append(Nudge(id: s.id, icon: "questionmark.bubble.fill", tint: Palette.needsYou[1], text: "\(name(s)) asked: “\(s.question ?? s.detail)”", since: s.since, session: s))
+        }
+        for s in people where s.ended {
+            list.append(Nudge(id: s.id, icon: "exclamationmark.triangle.fill", tint: Palette.danger, text: "\(name(s)) ended with unsaved work: \(s.unsaved ?? "")", since: s.since, session: s))
+        }
+        guard let work = scanner.work, scanner.folder == project.root else { return list }
+        let busy = Set(people.filter { $0.state == .working }.map(\.desk))
+        for tree in work.worktrees where !tree.saved {
+            let folder = (tree.path as NSString).lastPathComponent
+            guard !busy.contains(folder) else { continue }
+            let label = tree.agent ?? folder
+            if !tree.ahead.isEmpty {
+                let what = tree.ahead.count == 1 ? "“\(tree.ahead[0].subject)” isn't" : "\(tree.ahead.count) commits aren't"
+                list.append(Nudge(id: tree.path + "/ahead", icon: "arrow.triangle.merge", tint: Palette.plan, text: "\(label): \(what) in \(work.branch) yet."))
+            }
+            if !tree.uncommitted.isEmpty {
+                list.append(Nudge(id: tree.path + "/dirty", icon: "doc.badge.ellipsis", tint: Palette.plan,
+                                  text: "\(label) left \(count(tree.uncommitted.count, "file")) uncommitted, and no agent is working there."))
+            }
+        }
+        for group in work.uncommitted {
+            let files = count(group.files.count, "file")
+            list.append(Nudge(id: "dirty/" + group.who, icon: "doc.badge.ellipsis", tint: Palette.plan, text: group.who.isEmpty
+                ? "\(files) in \(work.branch) \(group.files.count == 1 ? "is" : "are") uncommitted, and no agent edited them today."
+                : "\(group.who) left \(files) uncommitted in \(work.branch)."))
+        }
+        if !work.unpushed.isEmpty {
+            list.append(Nudge(id: "unpushed", icon: "icloud.and.arrow.up", tint: Palette.plan, text: "\(count(work.unpushed.count, "commit")) on \(work.branch) \(work.unpushed.count == 1 ? "isn't" : "aren't") pushed."))
+        }
+        if !work.missing.isEmpty {
+            list.append(Nudge(id: "missing", icon: "arrow.triangle.pull", tint: Palette.plan, text: "\(count(work.missing.count, "commit")) on other branches \(work.missing.count == 1 ? "isn't" : "aren't") in \(work.branch)."))
+        }
+        let saved = work.worktrees.filter(\.saved).count
+        if saved > 0 {
+            list.append(Nudge(id: "saved", icon: "archivebox", tint: .secondary, text: "\(count(saved, "worktree")) \(saved == 1 ? "is" : "are") fully merged. Archive their sessions to clean up."))
+        }
+        return list
+    }
+
+    private func needsYou(_ project: Project) -> some View {
+        let list = nudges(project)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return VStack(alignment: .leading, spacing: 10) {
+            section("Needs you")
+            if list.isEmpty {
+                Label("Nothing right now. Everything here is saved.", systemImage: "checkmark.circle").foregroundStyle(.secondary)
+            }
+            ForEach(list) { nudge in
+                if let session = nudge.session {
+                    Button { store.jump(to: session) } label: { nudgeRow(nudge, link: true) }
+                        .buttonStyle(.plain)
+                        .help(session.ended ? "Open its folder" : "Go to this agent")
+                } else {
+                    nudgeRow(nudge, link: false)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.35), in: shape)
+    }
+
+    private func nudgeRow(_ nudge: Nudge, link: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: nudge.icon).foregroundStyle(nudge.tint).frame(width: 18)
+            Text(nudge.text).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+            if let since = nudge.since { Text(Elapsed.short(Date().timeIntervalSince(since))).foregroundStyle(.tertiary).monospacedDigit() }
+            if link { Image(systemName: "arrow.up.forward").foregroundStyle(.secondary) }
+        }
+        .font(.callout)
+        .contentShape(Rectangle())
+    }
+
     @ViewBuilder
-    private func whereIsWork(_ desk: String) -> some View {
-        if let work = scanner.work, scanner.folder == folder(desk) {
+    private func whereIsWork(_ project: Project) -> some View {
+        if let work = scanner.work, scanner.folder == project.root {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Where's my work").font(.headline)
@@ -309,11 +458,11 @@ struct OfficeView: View {
         var denied = false
     }
 
-    private func dayLog(_ name: String, _ entries: [ActivityLog.Entry]) -> some View {
-        let rows = rows(entries.filter { $0.desk == name })
+    private func dayLog(_ project: Project, _ entries: [ActivityLog.Entry]) -> some View {
+        let rows = rows(entries.filter { project.desks.contains($0.desk) }, main: project.name)
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return VStack(alignment: .leading, spacing: 0) {
-            section("\(name) today").padding(.bottom, 10)
+            section("\(project.name) today").padding(.bottom, 10)
             if rows.isEmpty {
                 Text("Nothing logged here today.").font(.caption).foregroundStyle(.secondary)
             }
@@ -337,13 +486,15 @@ struct OfficeView: View {
     }
 
     // One readable line per event. Edits in a row merge, and "working again" after you answer is left out.
-    private func rows(_ entries: [ActivityLog.Entry]) -> [Row] {
+    // Worktree activity names its worktree, so a project's log reads as one story.
+    private func rows(_ entries: [ActivityLog.Entry], main: String) -> [Row] {
         var rows: [Row] = []
         var previous: [String: String] = [:]
         for entry in entries {
             defer { previous[entry.session] = entry.kind }
             let isItem = entry.session.hasPrefix("item:")
-            let who = isItem ? entry.title : (Agent(rawValue: entry.agent) ?? .claude).title
+            let agent = (Agent(rawValue: entry.agent) ?? .claude).title + (entry.desk == main ? "" : " in \(entry.desk)")
+            let who = isItem ? entry.title : agent
             var text: String
             switch entry.kind {
             case "edit":
