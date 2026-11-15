@@ -254,7 +254,7 @@ struct NotchView: View {
             if inside { state.hovered = session.id } else if state.hovered == session.id { state.hovered = nil }
         }
         .onTapGesture { store.jump(to: session) }
-        .help(Jump.appId(session) == nil ? "" : "Go to this agent")
+        .help(session.ended ? "Open its folder" : Jump.appId(session) == nil ? "" : "Go to this agent")
     }
 
     // Where it runs: branch (or folder), then model and effort.

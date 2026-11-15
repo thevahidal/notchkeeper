@@ -4,11 +4,13 @@ import SwiftUI
 struct OfficeView: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject var store: SessionStore
+    @StateObject private var scanner = WorkScanner()
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { _ in
+        TimelineView(.periodic(from: .now, by: 30)) { context in
             let entries = ActivityLog.today()
             let desks = desks(entries)
+            let selected = desks.contains(model.desk ?? "") ? model.desk : desks.first
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     today(entries)
@@ -16,19 +18,22 @@ struct OfficeView: View {
                     if desks.isEmpty {
                         Text("A desk appears when an agent or watch starts work in a project.").foregroundStyle(.secondary)
                     }
-                    let selected = desks.contains(model.desk ?? "") ? model.desk : desks.first
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 10, alignment: .top)], spacing: 10) {
                         ForEach(desks, id: \.self) { name in
                             Button { model.desk = name } label: { desk(name, entries, selected: name == selected) }
                                 .buttonStyle(.plain)
                         }
                     }
-                    if let selected { dayLog(selected, entries) }
+                    if let selected {
+                        whereIsWork(selected)
+                        dayLog(selected, entries)
+                    }
                     if !ActivityLog.enabled {
                         Text("The activity log is off, so today's totals stay empty. Turn it on in Settings.").font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .padding(20)
+                .task(id: "\(selected ?? "")|\(context.date)") { scanner.load(selected.flatMap(folder)) }
             }
         }
     }
@@ -113,6 +118,90 @@ struct OfficeView: View {
         .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
         .contentShape(Rectangle())
         .background(RoundedRectangle(cornerRadius: 8).strokeBorder(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary), lineWidth: selected ? 2 : 1))
+    }
+
+    // A live agent's folder, else one agents ran in lately.
+    private func folder(_ desk: String) -> String? {
+        store.sessions.first { $0.desk == desk && !$0.cwd.isEmpty }?.cwd
+            ?? store.recentFolders.first { ($0 as NSString).lastPathComponent == desk }
+    }
+
+    @ViewBuilder
+    private func whereIsWork(_ desk: String) -> some View {
+        if let work = scanner.work, scanner.folder == folder(desk) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Where's my work").font(.headline)
+                    Text(work.branch).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(work.fetched.map { "Remote as of \($0.formatted(.relative(presentation: .named)))" } ?? "Never fetched")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+                if work.uncommitted.isEmpty && work.unpushed.isEmpty && work.missing.isEmpty && work.worktrees.allSatisfy(\.saved) {
+                    Label("All committed and pushed, and nothing on other branches is missing here.", systemImage: "checkmark.circle")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                if !work.uncommitted.isEmpty {
+                    group("Not committed") {
+                        ForEach(work.uncommitted, id: \.who) { g in
+                            line(g.who.isEmpty ? "Not from an agent today" : g.who, Self.files(g.files.map { ($0 as NSString).lastPathComponent }))
+                        }
+                    }
+                }
+                if !work.unpushed.isEmpty {
+                    group("Not pushed") { ForEach(work.unpushed) { line($0.subject, nil) } }
+                }
+                if !work.missing.isEmpty {
+                    group("On other branches, missing here") { ForEach(work.missing) { line($0.subject, $0.places.joined(separator: ", ")) } }
+                }
+                let holding = work.worktrees.filter { !$0.saved }
+                if !holding.isEmpty {
+                    group("Worktrees with work not here") {
+                        ForEach(holding) { tree in
+                            VStack(alignment: .leading, spacing: 2) {
+                                line((tree.path as NSString).lastPathComponent, tree.agent)
+                                Group {
+                                    if !tree.uncommitted.isEmpty {
+                                        Text("Not committed: " + Self.files(tree.uncommitted.map { ($0 as NSString).lastPathComponent }))
+                                    }
+                                    ForEach(tree.ahead) { Text("Not merged: " + $0.subject) }
+                                }
+                                .font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.leading, 12)
+                            }
+                        }
+                    }
+                }
+                let saved = work.worktrees.filter(\.saved)
+                if !saved.isEmpty {
+                    group("Safe to remove") {
+                        Text(saved.map { ($0.path as NSString).lastPathComponent }.joined(separator: ", "))
+                            .font(.callout).textSelection(.enabled)
+                        if saved.contains(where: \.locked) {
+                            Text("Everything in these is merged here. Locked ones belong to a Claude session; archive it to remove the worktree.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    private func group<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            content()
+        }
+    }
+
+    private func line(_ title: String, _ detail: String?) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title).lineLimit(1)
+            if let detail { Text(detail).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle) }
+        }
+        .font(.callout)
+        .textSelection(.enabled)
     }
 
     private struct Row: Identifiable {

@@ -15,7 +15,7 @@ enum Jump {
     private static let scriptable: Set = ["ghostty", "iTerm.app", "Apple_Terminal"]
 
     static func canReply(_ session: Session) -> Bool {
-        session.tty != nil && !session.background && (session.pane != nil || scriptable.contains(session.term ?? ""))
+        session.tty != nil && !session.background && !session.ended && (session.pane != nil || scriptable.contains(session.term ?? ""))
     }
 
     // The app the session runs in, if known: the desktop app, its terminal, or the app its environment names.
@@ -38,6 +38,14 @@ enum Jump {
             return
         }
         appId(session).map(activate)
+    }
+
+    // A new window of the agent's terminal at its folder; Finder when there's no terminal to use.
+    static func open(folder: String, for session: Session) {
+        let url = URL(fileURLWithPath: folder)
+        guard let id = session.term.flatMap({ terminals[$0] }),
+              let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else { return NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
     // Focuses the Ghostty or Terminal tab on this tty; false if neither has it.
