@@ -6,5 +6,7 @@ reply=$(tr -d '\n' | { cat; echo; } | nc -U -w 30 "$HOME/.ping/ping.sock" 2>/dev
 case "$reply" in
   allow) printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}\n' ;;
   deny) printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Denied from Ping"}}}\n' ;;
+  # Ping sends Claude's own suggested rules, scoped to this session, as one line of JSON.
+  "allow-session ["*"]") printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow","updatedPermissions":%s}}}\n' "${reply#allow-session }" ;;
 esac
 exit 0

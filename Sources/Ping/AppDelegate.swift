@@ -27,7 +27,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("Ping: could not start event server: \(error)")
         }
 
-        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.store.pruneStale() }
+        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.store.pruneStale()
+            self?.store.remind()
+        }
 
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main

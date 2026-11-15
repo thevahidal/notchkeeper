@@ -3,22 +3,21 @@ import SwiftUI
 
 final class NotchState: ObservableObject {
     @Published var expanded = false
+    @Published var hovered: String?
     var notch = CGSize(width: 0, height: 24)
 
     // Up to this many sessions get one dot each; more show counts per state.
     let maxDots = 4
     // Strip below the camera housing, so the glow isn't hidden behind the hardware notch.
     let lip: CGFloat = 5
-    let expandedWidth: CGFloat = 400
-    let rowHeight: CGFloat = 40
-    let cardHeight: CGFloat = 150
-    // Five rows; the list scrolls past that.
-    var maxListHeight: CGFloat { 5 * rowHeight }
-
-    func earWidth(_ count: Int) -> CGFloat { count > maxDots ? 78 : 60 }
-
+    let expandedWidth: CGFloat = 440
+    let headerHeight: CGFloat = 30
+    let rowHeight: CGFloat = 52
     // One short line per running subagent, under its parent.
     let subagentHeight: CGFloat = 17
+    let planHeight: CGFloat = 300
+    // Five rows; the list scrolls past that.
+    var maxListHeight: CGFloat { 5 * rowHeight }
 
     func height(of session: Session) -> CGFloat {
         rowHeight + CGFloat(session.subagents.count) * subagentHeight
@@ -28,15 +27,33 @@ final class NotchState: ObservableObject {
         min(maxListHeight, sessions.reduce(0) { $0 + height(of: $1) })
     }
 
-    func size(for sessions: [Session], card: Bool) -> CGSize {
-        if card { return CGSize(width: expandedWidth, height: notch.height + cardHeight) }
-        if expanded { return CGSize(width: expandedWidth, height: notch.height + 16 + listHeight(sessions)) }
-        if sessions.isEmpty { return CGSize(width: notch.width, height: notch.height) }
-        return CGSize(width: notch.width + earWidth(sessions.count) * 2, height: notch.height + lip)
+    // Height of the card on show, if any, below the notch.
+    func cardHeight(_ store: SessionStore) -> CGFloat? {
+        if let approval = store.approvals.first { return approval.sessionRules.isEmpty ? 150 : 170 }
+        if store.offerConnect || store.replyTo != nil { return 150 }
+        return store.plan != nil ? planHeight : nil
+    }
+
+    func earWidth(_ store: SessionStore) -> CGFloat {
+        store.headline != nil || store.sessions.count > maxDots ? 84 : 56
+    }
+
+    // Quiet mode: nothing beside the notch until an agent needs you.
+    func showsEars(_ store: SessionStore) -> Bool {
+        !store.sessions.isEmpty && (!store.quiet || store.headline != nil)
+    }
+
+    func size(_ store: SessionStore) -> CGSize {
+        if let card = cardHeight(store) { return CGSize(width: expandedWidth, height: notch.height + card) }
+        if expanded {
+            return CGSize(width: expandedWidth, height: notch.height + headerHeight + 14 + listHeight(store.sorted))
+        }
+        guard showsEars(store) else { return CGSize(width: notch.width, height: notch.height) }
+        return CGSize(width: notch.width + earWidth(store) * 2, height: notch.height + lip)
     }
 
     var windowSize: CGSize {
-        CGSize(width: expandedWidth, height: notch.height + max(cardHeight, 16 + maxListHeight))
+        CGSize(width: expandedWidth, height: notch.height + max(planHeight, headerHeight + 14 + maxListHeight))
     }
 }
 
@@ -70,7 +87,8 @@ final class NotchPanel: NSPanel {
     func place() {
         let screen = NSScreen.screens.first { $0.notchSize != nil } ?? NSScreen.main
         guard let screen else { return }
-        state.notch = screen.notchSize ?? CGSize(width: 0, height: 24)
+        // No notch (e.g. an external display): hang a small bar from the middle of the menu bar.
+        state.notch = screen.notchSize ?? CGSize(width: 0, height: max(24, screen.frame.maxY - screen.visibleFrame.maxY))
         let size = state.windowSize
         setFrame(
             NSRect(x: screen.frame.midX - size.width / 2, y: screen.frame.maxY - size.height, width: size.width, height: size.height),
@@ -86,8 +104,8 @@ final class NotchPanel: NSPanel {
         // Done replying: hand the keyboard back to the app you were in.
         if store.replyTo == nil && isKeyWindow { NSWorkspace.shared.frontmostApplication?.activate() }
 
-        let card = !store.approvals.isEmpty || store.replyTo != nil || store.offerConnect
-        let size = state.size(for: store.sorted, card: card)
+        let card = state.cardHeight(store) != nil
+        let size = state.size(store)
         let hotZone = NSRect(x: frame.midX - size.width / 2, y: frame.maxY - size.height, width: size.width, height: size.height)
             .insetBy(dx: -6, dy: -6)
         let inside = !store.sessions.isEmpty && hotZone.contains(NSEvent.mouseLocation)

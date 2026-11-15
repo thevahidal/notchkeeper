@@ -21,6 +21,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: connected ? "Connected to Claude Code" : "Not connected to Claude Code", action: nil, keyEquivalent: ""))
         add(menu, connected ? "Disconnect" : "Connect…", #selector(toggleConnect))
         menu.addItem(.separator())
+        add(menu, "Sounds", #selector(toggleSounds)).state = store.sounds ? .on : .off
+        add(menu, "Quiet Mode", #selector(toggleQuiet)).state = store.quiet ? .on : .off
         add(menu, "Launch at Login", #selector(toggleLogin)).state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
         add(menu, "Quit Ping", #selector(quit), key: "q")
@@ -53,6 +55,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             NSLog("Ping: launch at login failed: \(error)")
         }
     }
+
+    @objc private func toggleSounds() { store.sounds.toggle() }
+    @objc private func toggleQuiet() { store.quiet.toggle() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

@@ -12,6 +12,7 @@ struct Session: Identifiable {
     let id: String
     var repo: String
     var title = ""
+    var branch: String?
     var tty: String?
     var term: String?
     // The desktop app's question box from the latest turn.
@@ -22,6 +23,8 @@ struct Session: Identifiable {
     var effort: String?
     var subagents: [Subagent] = []
     var state: SessionState
+    // When it entered the current state.
+    var since = Date()
     var detail: String
     var lastSeen: Date
 }
@@ -42,13 +45,29 @@ struct Approval: Identifiable {
     let repo: String
     let tool: String
     let target: String
+    // Claude's own "don't ask again" rules for this request, narrowed to this session.
+    let sessionRules: [[String: Any]]
     let expires: Date
     let reply: EventServer.Reply
+}
+
+struct PlanReview {
+    let sessionId: String
+    let repo: String
+    let plan: String
 }
 
 final class SessionStore: ObservableObject {
     @Published var sessions: [Session] = []
     @Published var approvals: [Approval] = []
+    @Published var plan: PlanReview?
+    @Published var sounds = UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(sounds, forKey: "sounds") }
+    }
+    // Collapsed notch stays dark until an agent needs you.
+    @Published var quiet = UserDefaults.standard.bool(forKey: "quiet") {
+        didSet { UserDefaults.standard.set(quiet, forKey: "quiet") }
+    }
     @Published var replyTo: Session?
     @Published var draft = ""
     // First launch: ask before touching ~/.claude/settings.json.
@@ -70,6 +89,11 @@ final class SessionStore: ObservableObject {
         return sessions.contains { $0.state == .yourTurn && !$0.seen } ? .yourTurn : .idle
     }
 
+    // The one session the collapsed notch names: the most urgent one still waiting on you.
+    var headline: Session? {
+        sorted.first { !$0.seen && $0.state != .working }
+    }
+
     func jump(to session: Session) {
         Jump.to(session)
         markSeen(session.id)
@@ -84,7 +108,13 @@ final class SessionStore: ObservableObject {
     func answer(_ approval: Approval, _ decision: String) {
         // Ignore clicks and hotkeys that land as the card pops up; you haven't read it yet.
         guard decision == "terminal" || Date().timeIntervalSince(approval.shown) > 0.7 else { return }
-        approval.reply(decision)
+        if decision == "session" {
+            // One line of JSON built from Claude's own suggestions; the hook passes it back as is.
+            guard let data = try? JSONSerialization.data(withJSONObject: approval.sessionRules) else { return }
+            approval.reply("allow-session " + String(decoding: data, as: UTF8.self))
+        } else {
+            approval.reply(decision)
+        }
         approvals.removeAll { $0.id == approval.id }
     }
 
@@ -116,10 +146,16 @@ final class SessionStore: ObservableObject {
 
         // Any later event from the same agent means the request was settled elsewhere, e.g. in the terminal.
         approvals.removeAll { $0.sessionId == id && $0.agentId == agentId }
-        if let reply {
+        if plan?.sessionId == id && name != "Notification" { plan = nil }
+        // Claude ignores a hook's answer to ExitPlanMode, so don't hold it: show the plan and let Claude ask as usual.
+        if let reply, Self.tool(event) == "ExitPlanMode" {
+            reply("")
+            let text = (event["tool_input"] as? [String: Any])?["plan"] as? String ?? ""
+            if !text.isEmpty { plan = PlanReview(sessionId: id, repo: repo, plan: text) }
+        } else if let reply {
             let approval = Approval(
                 sessionId: id, agentId: agentId, repo: repo, tool: Self.tool(event), target: Self.target(event) ?? "",
-                expires: Date().addingTimeInterval(Self.approvalTimeout), reply: reply
+                sessionRules: Self.sessionRules(event), expires: Date().addingTimeInterval(Self.approvalTimeout), reply: reply
             )
             approvals.append(approval)
             // The hook gives up after 30s, so drop the card just before that.
@@ -158,10 +194,13 @@ final class SessionStore: ObservableObject {
         let detail = describe(name, event)
         let isNew = !sessions.contains { $0.id == id }
         if isNew || name == "Stop" { loadTitle(id, transcript: event["transcript_path"] as? String) }
+        if isNew || name == "Stop", let cwd = event["cwd"] as? String { loadBranch(id, cwd: cwd) }
         if !sessions.contains(where: { $0.id == id }) {
             sessions.append(Session(id: id, repo: repo, state: state, detail: "", lastSeen: Date()))
         }
         let i = sessions.firstIndex { $0.id == id }!
+        let entered = sessions[i].state != state || isNew
+        if sessions[i].state != state { sessions[i].since = Date() }
         sessions[i].state = state
         sessions[i].detail = detail ?? sessions[i].detail
         if state == .working { sessions[i].question = nil }
@@ -176,7 +215,26 @@ final class SessionStore: ObservableObject {
         if let effort = (event["effort"] as? [String: Any])?["level"] as? String { sessions[i].effort = effort }
         // A new event is unseen, unless it finished in the tab you're already looking at.
         sessions[i].seen = false
-        if name == "Stop" && Jump.isFrontmost(sessions[i]) { markSeen(id) }
+        // An AppleScript round trip, so only when it matters.
+        let looking = (name == "Stop" || (entered && state != .working)) && Jump.isFrontmost(sessions[i])
+        if name == "Stop" && looking { markSeen(id) }
+        if entered && state != .working && !looking { chime(state) }
+    }
+
+    private var lastChime = Date.distantPast
+
+    func chime(_ state: SessionState) {
+        guard sounds, Date().timeIntervalSince(lastChime) > 2 else { return }
+        lastChime = Date()
+        NSSound(named: state == .needsYou ? "Ping" : "Pop")?.play()
+    }
+
+    // While something has needed you for a few minutes and you've stepped away, remind you once in a while.
+    func remind() {
+        let idle = [CGEventType.keyDown, .mouseMoved].map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }
+        let away = idle.min() ?? 0 > 60
+        let stuck = sessions.contains { $0.state == .needsYou && Date().timeIntervalSince($0.since) > 180 }
+        if away && stuck && Date().timeIntervalSince(lastChime) > 180 { chime(.needsYou) }
     }
 
     private func applySubagent(_ id: String, _ agentId: String, _ name: String, _ event: [String: Any]) {
@@ -213,6 +271,34 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    private func loadBranch(_ id: String, cwd: String) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let branch = Self.gitBranch(cwd)
+            DispatchQueue.main.async {
+                guard let i = self?.sessions.firstIndex(where: { $0.id == id }) else { return }
+                self?.sessions[i].branch = branch
+            }
+        }
+    }
+
+    // Reads .git/HEAD directly instead of running git; worktrees have a .git file pointing at their real dir.
+    static func gitBranch(_ cwd: String) -> String? {
+        var dir = URL(fileURLWithPath: cwd)
+        while dir.path != "/" {
+            let git = dir.appendingPathComponent(".git")
+            var gitDir = git
+            if let link = try? String(contentsOf: git, encoding: .utf8), link.hasPrefix("gitdir: ") {
+                gitDir = URL(fileURLWithPath: link.dropFirst(8).trimmingCharacters(in: .whitespacesAndNewlines), relativeTo: dir)
+            }
+            if let head = try? String(contentsOf: gitDir.appendingPathComponent("HEAD"), encoding: .utf8) {
+                let ref = head.trimmingCharacters(in: .whitespacesAndNewlines)
+                return ref.hasPrefix("ref: refs/heads/") ? String(ref.dropFirst(16)) : String(ref.prefix(7))
+            }
+            dir.deleteLastPathComponent()
+        }
+        return nil
+    }
+
     // Titles can change, so this is re-read on every Stop. Transcripts can be large, hence the background queue.
     private func loadTitle(_ id: String, transcript path: String?) {
         // Events could name any file; only read Claude's own transcripts.
@@ -228,7 +314,9 @@ final class SessionStore: ObservableObject {
                 if self.sessions[i].state == .yourTurn, let question {
                     self.sessions[i].question = question
                     self.sessions[i].state = .needsYou
+                    self.sessions[i].since = Date()
                     self.sessions[i].seen = false
+                    self.chime(.needsYou)
                 }
             }
         }
@@ -284,6 +372,13 @@ final class SessionStore: ObservableObject {
         // Skip injected blocks like <system-reminder> or <command-name>.
         guard let text = texts.first(where: { !$0.hasPrefix("<") }) else { return nil }
         return text.split(separator: "\n").first.map { String($0.prefix(80)) }
+    }
+
+    // Only "add an allow rule" suggestions, and only for this session: never saved to a settings file.
+    private static func sessionRules(_ event: [String: Any]) -> [[String: Any]] {
+        (event["permission_suggestions"] as? [[String: Any]] ?? [])
+            .filter { $0["type"] as? String == "addRules" && $0["behavior"] as? String == "allow" }
+            .map { var rule = $0; rule["destination"] = "session"; return rule }
     }
 
     private static func tool(_ event: [String: Any]) -> String {
