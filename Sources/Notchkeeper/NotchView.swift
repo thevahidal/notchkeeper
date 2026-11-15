@@ -46,6 +46,7 @@ struct NotchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: state.expanded)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: store.sessions.map(\.id))
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: state.filter)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: approval?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.replyTo?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.plan?.sessionId)
@@ -106,7 +107,7 @@ struct NotchView: View {
     }
 
     private var expanded: some View {
-        let sessions = store.sorted
+        let sessions = state.visible(store)
 
         return VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: state.notch.height + 2)
@@ -127,18 +128,31 @@ struct NotchView: View {
 
     private var header: some View {
         let counts: [(SessionState, String)] = [(.needsYou, "need you"), (.working, "working"), (.yourTurn, "done")]
-        return HStack(spacing: 12) {
+        return HStack(spacing: 4) {
             ForEach(counts, id: \.0) { s, label in
                 let n = store.sessions.filter { $0.state == s }.count
                 if n > 0 {
-                    HStack(spacing: 5) {
-                        Orb(state: s, size: 5)
-                        Text("\(n) \(s == .needsYou && n == 1 ? "needs you" : label)")
+                    let on = state.filter == s
+                    Button { state.filter = on ? nil : s } label: {
+                        HStack(spacing: 5) {
+                            Orb(state: s, size: 5)
+                            Text("\(n) \(s == .needsYou && n == 1 ? "needs you" : label)")
+                        }
+                        .foregroundStyle(s == .working ? .white.opacity(0.5) : Palette.orb(s))
+                        .padding(.horizontal, 7)
+                        .frame(height: 20)
+                        .background(.white.opacity(on ? 0.14 : 0), in: Capsule())
+                        .opacity(state.filter == nil || on ? 1 : 0.45)
+                        .contentShape(Capsule())
                     }
-                    .foregroundStyle(s == .working ? .white.opacity(0.5) : Palette.orb(s))
+                    .buttonStyle(.plain)
+                    .help(on ? "Show all agents" : "Show only these")
                 }
             }
             Spacer()
+            if store.sessions.contains(where: { $0.state == .yourTurn }) {
+                HeaderToggle(on: false, symbol: "checkmark.circle", help: "Clear finished agents") { store.clearFinished() }
+            }
             HeaderToggle(on: false, symbol: "plus", help: "Start a background agent") { store.openNewAgent() }
             HeaderToggle(on: store.sounds, symbol: store.sounds ? "speaker.wave.2.fill" : "speaker.slash.fill",
                          help: store.sounds ? "Sounds on" : "Sounds off") { store.sounds.toggle() }
@@ -201,6 +215,18 @@ struct NotchView: View {
             // On hover only, so rows stay calm.
             if session.state != .working && hovered {
                 SnoozeMenu(store: store, session: session, hovered: hovered).padding(.top, 4)
+            }
+            if hovered {
+                Button { store.dismiss(session.id) } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 26, height: 26)
+                        .background(.white.opacity(0.16), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Close: hide until it does something new")
+                .padding(.top, 4)
             }
             if Jump.canReply(session) {
                 Button { store.replyTo = session } label: {
@@ -362,8 +388,8 @@ struct StateBadge: View {
                 .frame(width: 26, height: 26)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1))
-                .overlay(alignment: .topTrailing) {
-                    if !session.isItem { EnvIcon(session: session).offset(x: 4, y: -4) }
+                .overlay(alignment: .topLeading) {
+                    if !session.isItem { EnvIcon(session: session).offset(x: -4, y: -4) }
                 }
             Orb(state: session.state, seen: session.seen, size: 8)
                 .padding(2)

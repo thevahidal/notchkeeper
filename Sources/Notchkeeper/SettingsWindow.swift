@@ -101,6 +101,13 @@ struct SettingsView: View {
                     Text("Quiet mode")
                     Text("The closed notch stays dark until an agent needs you.")
                 }
+                Picker(selection: $store.awayMinutes) {
+                    Text("Off").tag(0)
+                    ForEach([5, 10, 15, 30], id: \.self) { Text("After \($0) min").tag($0) }
+                } label: {
+                    Text("While you were away")
+                    Text("When you're back, sums up who finished and who needs you. Only shows if one did.")
+                }
                 Toggle(isOn: Binding(get: { model.followsActiveDisplay }, set: { model.followsActiveDisplay = $0 })) {
                     Text("Show on active display")
                     Text("Follows the screen you're working on, instead of staying on the built-in one.")
