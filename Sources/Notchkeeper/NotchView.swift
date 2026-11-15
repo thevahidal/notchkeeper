@@ -362,8 +362,8 @@ struct StateBadge: View {
                 .frame(width: 26, height: 26)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1))
-                .overlay(alignment: .topTrailing) {
-                    if !session.isItem { EnvIcon(session: session).offset(x: 4, y: -4) }
+                .overlay(alignment: .topLeading) {
+                    if !session.isItem { EnvIcon(session: session).offset(x: -4, y: -4) }
                 }
             Orb(state: session.state, seen: session.seen, size: 8)
                 .padding(2)
