@@ -58,6 +58,11 @@ final class SettingsModel: ObservableObject {
         set { NotchPanel.followsActiveDisplay = newValue; onPlacementChange?(); refresh() }
     }
 
+    var pickWorktrees: Bool {
+        get { SessionStore.pickWorktrees }
+        set { SessionStore.pickWorktrees = newValue; refresh() }
+    }
+
     var attachInNewTab: Bool {
         get { ClaudeCLI.attachInNewTab }
         set { ClaudeCLI.attachInNewTab = newValue; refresh() }
@@ -115,6 +120,10 @@ struct SettingsView: View {
                 Toggle(isOn: Binding(get: { model.attachInNewTab }, set: { model.attachInNewTab = $0 })) {
                     Text("Open background agents in a new tab")
                     Text("In Ghostty's front window when it's open. Off opens a new window each time.")
+                }
+                Toggle(isOn: Binding(get: { model.pickWorktrees }, set: { model.pickWorktrees = $0 })) {
+                    Text("List agent worktrees as folders")
+                    Text("In the new agent's folder list. Off lists only your projects, not the worktrees agents made in them.")
                 }
                 Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.launchAtLogin = $0 }))
             }

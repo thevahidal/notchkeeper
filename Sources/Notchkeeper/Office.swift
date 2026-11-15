@@ -139,7 +139,7 @@ struct OfficeView: View {
     // A live agent's folder, else one agents ran in lately.
     private func folder(_ desk: String) -> String? {
         store.sessions.first { $0.desk == desk && !$0.cwd.isEmpty }?.cwd
-            ?? store.recentFolders.first { ($0 as NSString).lastPathComponent == desk }
+            ?? store.knownFolders.first { ($0 as NSString).lastPathComponent == desk }
     }
 
     @ViewBuilder

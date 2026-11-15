@@ -192,13 +192,20 @@ final class SessionStore: ObservableObject {
 
     // Folders agents ran in lately, newest first, for the new agent picker.
     var recentFolders: [String] {
+        // Worktrees agents made (claude -w puts them in .claude/worktrees) are hidden by default; you pick the repo.
+        Array(knownFolders.filter { Self.pickWorktrees || !$0.contains("/.claude/worktrees/") }.prefix(8))
+    }
+
+    var knownFolders: [String] {
         let live = sessions.sorted { $0.lastSeen > $1.lastSeen }.map(\.cwd)
         let saved = UserDefaults.standard.stringArray(forKey: "recentFolders") ?? []
         var seen = Set<String>()
-        // Skip worktrees agents made (claude -w puts them in .claude/worktrees); you pick the repo, not one of those.
-        return (live + saved)
-            .filter { !$0.isEmpty && !$0.contains("/.claude/worktrees/") && seen.insert($0).inserted }
-            .prefix(8).map { $0 }
+        return (live + saved).filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    static var pickWorktrees: Bool {
+        get { UserDefaults.standard.bool(forKey: "pickWorktrees") }
+        set { UserDefaults.standard.set(newValue, forKey: "pickWorktrees") }
     }
 
     func openNewAgent(in folder: String? = nil) {
