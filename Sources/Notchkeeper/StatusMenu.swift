@@ -7,6 +7,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private let store: SessionStore
     // Re-places the notch when the display setting changes.
     var onPlacementChange: (() -> Void)?
+    var onSettings: (() -> Void)?
 
     init(store: SessionStore) {
         self.store = store
@@ -37,6 +38,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         add(menu, "Approval Log…", #selector(openLog))
         add(menu, "Launch at Login", #selector(toggleLogin)).state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
+        add(menu, "Settings…", #selector(openSettings), key: ",")
         add(menu, "Quit Notchkeeper", #selector(quit), key: "q")
     }
 
@@ -112,11 +114,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func addExamples() { Plugins.installExamples(); openPlugins() }
-
-    @objc private func openPlugins() {
-        try? FileManager.default.createDirectory(atPath: Plugins.folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        NSWorkspace.shared.open(URL(fileURLWithPath: Plugins.folder))
-    }
+    @objc private func openPlugins() { Plugins.openFolder() }
+    @objc private func openSettings() { onSettings?() }
 
     @objc private func toggleFollow() {
         NotchPanel.followsActiveDisplay.toggle()
@@ -125,14 +124,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     @objc private func toggleSounds() { store.sounds.toggle() }
     @objc private func toggleQuiet() { store.quiet.toggle() }
 
-    // Opens as plain text; the file only exists after the first answer.
-    @objc private func openLog() {
-        if !FileManager.default.fileExists(atPath: AuditLog.path) {
-            FileManager.default.createFile(atPath: AuditLog.path, contents: nil, attributes: [.posixPermissions: 0o600])
-        }
-        NSWorkspace.shared.open([URL(fileURLWithPath: AuditLog.path)], withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
-                                configuration: NSWorkspace.OpenConfiguration())
-    }
+    @objc private func openLog() { AuditLog.open() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

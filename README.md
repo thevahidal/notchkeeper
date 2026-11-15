@@ -93,7 +93,7 @@ open .build/Notchkeeper.app
 
 On first launch Notchkeeper asks, in the notch, whether to connect to Claude Code. Coming from Ping? Notchkeeper offers to swap Ping's hooks for its own and removes the old `~/.ping` hooks. **Connect** copies the two hook scripts to `~/.notchkeeper/hooks/` and adds them to `~/.claude/settings.json`. It keeps a backup of your settings next to the original and leaves your other settings and hooks as they are.
 
-Notchkeeper has a menu bar icon (〰) for connecting or disconnecting agents, launch at login, and quit. **Codex** and **Gemini CLI** show up under Agents when they're installed; click one to connect it. Codex runs new hooks only after you approve them, so open Codex and approve Notchkeeper's in `/hooks`. The first time you click a row or reply, macOS asks whether Notchkeeper may control that terminal (Ghostty, iTerm2 or Terminal).
+**Settings** (menu bar icon 〰 → Settings…, or open the app again) is one window for everything: connect or disconnect each agent, sounds, quiet mode, which display, launch at login, plugins, the approval log and the `notchkeeper` command. It opens by itself the first time. **Codex** and **Gemini CLI** show up under Agents when they're installed; click one to connect it. Codex runs new hooks only after you approve them, so open Codex and approve Notchkeeper's in `/hooks`. The first time you click a row or reply, macOS asks whether Notchkeeper may control that terminal (Ghostty, iTerm2 or Terminal).
 
 From a script: `Notchkeeper.app/Contents/MacOS/Notchkeeper --connect [claude|codex|gemini]` or `--disconnect [agent]` edits the hooks and exits.
 

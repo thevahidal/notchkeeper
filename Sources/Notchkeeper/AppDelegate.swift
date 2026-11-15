@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: NotchPanel?
     var server: EventServer?
     var menu: StatusMenu?
+    lazy var settings = SettingsModel(store: store)
     private var saver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -13,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel?.orderFrontRegardless()
         menu = StatusMenu(store: store)
         menu?.onPlacementChange = { [weak self] in self?.panel?.place() }
+        menu?.onSettings = { [weak self] in self?.showSettings() }
+        settings.onPlacementChange = { [weak self] in self?.panel?.place() }
 
         HookInstaller.refreshScripts()
         store.restore()
@@ -41,9 +44,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.store.remind()
         }
 
+        // First launch: show what can be set up.
+        if !UserDefaults.standard.bool(forKey: "launchedBefore") {
+            UserDefaults.standard.set(true, forKey: "launchedBefore")
+            showSettings()
+        }
+
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in self?.panel?.place() }
+    }
+
+    func showSettings() { SettingsWindow.show(settings) }
+
+    // Opening the app again (Finder, Spotlight, `open`) shows Settings.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showSettings()
+        return false
     }
 
     // ~/.notchkeeper/bin/notchkeeper → this app, so `notchkeeper notify` / `run` work wherever the app lives.

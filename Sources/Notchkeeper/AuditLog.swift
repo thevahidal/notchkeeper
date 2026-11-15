@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 // Every answer given from the notch, one JSON line each, in ~/.notchkeeper/approvals.log. Local only.
 enum AuditLog {
@@ -29,5 +29,14 @@ enum AuditLog {
         file.seekToEndOfFile()
         file.write(data + Data("\n".utf8))
         try? file.close()
+    }
+
+    // Opens as plain text; the file only exists after the first answer.
+    static func open() {
+        if !FileManager.default.fileExists(atPath: path) {
+            FileManager.default.createFile(atPath: path, contents: nil, attributes: [.posixPermissions: 0o600])
+        }
+        NSWorkspace.shared.open([URL(fileURLWithPath: path)], withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
+                                configuration: NSWorkspace.OpenConfiguration())
     }
 }

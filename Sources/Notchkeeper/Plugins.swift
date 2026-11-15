@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 // Plugins: folders in ~/.notchkeeper/plugins, each with a plugin.json and a script.
 // Notchkeeper runs a plugin's script when one of its events happens, with the event as JSON on stdin.
@@ -76,5 +76,10 @@ enum Plugins {
         for name in names where !fm.fileExists(atPath: folder + "/" + name) {
             try? fm.copyItem(atPath: examples + "/" + name, toPath: folder + "/" + name)
         }
+    }
+
+    static func openFolder() {
+        try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        NSWorkspace.shared.open(URL(fileURLWithPath: folder))
     }
 }
