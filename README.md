@@ -4,31 +4,41 @@ Your Claude Code agents, one glance away. Ping lives in your MacBook's notch and
 
 **[thevahidal.github.io/ping](https://thevahidal.github.io/ping/)** · [Download](https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg) · `brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping`
 
-<!-- screenshot: notch collapsed and expanded -->
+<p align="center">
+  <img src="docs/img/collapsed.png" alt="Collapsed notch: one dot per agent, and the name of the agent that needs you" width="760">
+  <img src="docs/img/expanded.png" alt="Expanded notch: every agent with its state, how long it has waited, branch and model" width="760">
+  <img src="docs/img/approval.png" alt="Approval card: allow once, allow for this session, or deny" width="760">
+</p>
 
 ## What it does
 
-- **Live status in the notch.** One dot per agent: violet while working, green when it's your turn, orange when it needs you. A glow under the notch shows the overall mood. With more than four agents the dots turn into counts.
-- **Hover to expand.** Each agent gets a row with its session title, repo, what it's doing right now, permission mode (ask, auto, plan, edits, bypass), and model and effort.
-- **Approve from the notch.** When Claude asks for permission, a card shows the command. Allow, Deny, or "Use terminal". ⌥Y and ⌥N work while the card is up.
+- **Live status in the notch.** One dot per agent: violet while working, green when it's your turn, orange when it needs you. Next to the notch, Ping names the agent that needs you (✋ api), or shows a soft pulse while they all just work. A glow under the notch shows the overall mood. With more than four agents the dots turn into counts.
+- **Hover to expand.** Each agent gets a row with its session title, what it's doing right now, how long it has waited on you, repo and git branch, permission mode (ask, auto, plan, edits, bypass), and model.
+- **Approve from the notch.** When Claude asks for permission, a card shows the command. Allow once, allow **for this session** (Claude's own "don't ask again" rule, kept for this session only), Deny, or hand it to the terminal. ⌥Y and ⌥N work while the card is up.
+- **Plans.** When Claude finishes a plan, Ping shows it, formatted, and takes you to the session to approve it.
 - **Questions.** When a turn ends with a question, the row turns orange and shows the question.
-- **Reply without switching** (Ghostty). Type a reply in the notch; Ping sends it to that agent's terminal.
-- **Jump to the agent.** Click a row to focus its exact Ghostty tab, or bring the Claude desktop app forward.
+- **Sounds.** A ping when an agent needs you, a soft pop when one finishes, and a reminder every few minutes if you've stepped away while one is stuck. Silent for the tab you're already looking at.
+- **Quiet mode.** The notch stays dark while agents work and lights up only when one needs you. Toggle it, and sounds, from the expanded notch or the menu bar.
+- **Reply without switching** (Ghostty, iTerm2, Terminal). Type a reply in the notch; Ping sends it to that agent's terminal.
+- **Jump to the agent.** Click a row to focus its exact tab in Ghostty, iTerm2 or Terminal, bring Warp, WezTerm or VS Code forward, or bring the Claude desktop app forward.
 - **Subagents.** Running subagents show as indented lines under their parent.
 - **Seen state.** Rows you've looked at go dim and move to the bottom.
-- **Works in full screen** and on every Space.
+- **Works in full screen** and on every Space. On a Mac or display without a notch, Ping hangs a small bar from the middle of the menu bar.
 
 ### Where each feature works
 
 | | Status | Approve | Questions | Jump | Reply |
 |---|---|---|---|---|---|
-| Claude Code CLI in Ghostty | ✅ | ✅ | ✅ | ✅ exact tab | ✅ |
+| Claude Code CLI in Ghostty, iTerm2 or Terminal | ✅ | ✅ | ✅ | ✅ exact tab | ✅ |
+| Claude Code CLI in Warp, WezTerm, VS Code | ✅ | ✅ | ✅ | brings the app forward | — |
 | Claude Code CLI in other terminals | ✅ | ✅ | ✅ | — | — |
-| Claude desktop app | ✅ | not yet verified | ✅ | brings the app forward | — |
+| Claude desktop app | ✅ | ✅ | ✅ | brings the app forward | — |
+
+In the desktop app, Claude's own prompt shows at the same time as Ping's card. Answer either one; Claude cancels the other.
 
 ## Install
 
-Requirements: macOS 14+ on a Mac with a notch (Apple silicon), and Claude Code (CLI or desktop app).
+Requirements: macOS 14+ on Apple silicon, and Claude Code (CLI or desktop app). Best on a Mac with a notch.
 
 **Homebrew**
 
@@ -42,7 +52,7 @@ Homebrew asks you to trust casks from third-party taps before it loads them; tha
 
 [Download Ping.dmg](https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg), open it and drag Ping to Applications.
 
-**First open:** Ping isn't signed with an Apple Developer ID yet, so macOS says it can't verify the developer. Go to System Settings → Privacy & Security and click **Open Anyway** next to Ping. You only need to do this once.
+**First open:** macOS asks you to allow Ping once. Go to System Settings → Privacy & Security and click **Open Anyway** next to Ping.
 
 **From source** (needs the Xcode Command Line Tools: `xcode-select --install`)
 
@@ -54,7 +64,7 @@ open .build/Ping.app
 
 On first launch Ping asks, in the notch, whether to connect to Claude Code. **Connect** copies the two hook scripts to `~/.ping/hooks/` and adds them to `~/.claude/settings.json`. It keeps a backup of your settings next to the original and leaves your other settings and hooks as they are.
 
-Ping has a menu bar icon (〰) for connecting or disconnecting, launch at login, and quit. The first time you click a Ghostty row or reply, macOS asks whether Ping may control Ghostty.
+Ping has a menu bar icon (〰) for connecting or disconnecting, launch at login, and quit. The first time you click a row or reply, macOS asks whether Ping may control that terminal (Ghostty, iTerm2 or Terminal).
 
 From a script: `Ping.app/Contents/MacOS/Ping --connect` or `--disconnect` edits the hooks and exits.
 
@@ -78,7 +88,7 @@ Claude Code (CLI or desktop)
 
 1. Claude Code reads hooks from `~/.claude/settings.json`. The CLI and the desktop app share this file.
 2. `ping-hook.sh` forwards each event's JSON to Ping over a local Unix socket and exits right away. It adds the terminal (tty) Claude runs in so Ping can jump to it.
-3. `ping-approve.sh` runs only when Claude needs permission. It waits up to 30 seconds for Ping to answer `allow` or `deny` and prints the matching decision for Claude.
+3. `ping-approve.sh` runs only when Claude needs permission. It waits up to 30 seconds for Ping to answer `allow`, `deny` or `allow-session` and prints the matching decision for Claude.
 4. Ping keeps everything in memory. For session titles, questions and the model name it reads the session's transcript in `~/.claude/projects/`.
 
 ## Security
@@ -91,7 +101,8 @@ Ping sits in the path of your agent's permission prompts, so it's built to fail 
 
 **Approvals**
 - Ping can only answer a permission request that Claude sends it. It can't invent one or widen what Claude asked for.
-- Anything other than exactly `allow` or `deny` means no decision, and Claude shows its normal prompt. That includes Ping not running, a timeout, a crash, or "Use terminal".
+- "For session" sends back only the "add an allow rule" suggestions Claude itself offered for that request, with their scope changed to this session. Nothing is written to a settings file.
+- Anything other than `allow`, `deny` or a well-formed `allow-session` means no decision, and Claude shows its normal prompt. That includes Ping not running, a timeout, a crash, or "Use terminal".
 - Clicks and hotkeys are ignored for the first 0.7 seconds after a card appears, so a stray keypress can't approve something you haven't read.
 - The hotkeys exist only while a card is showing.
 
@@ -100,7 +111,7 @@ Ping sits in the path of your agent's permission prompts, so it's built to fail 
 - Hooks run from a private copy in `~/.ping/hooks` (`700`), not from inside the app or a git checkout. Ping refreshes that copy when it starts, so an update to the app updates the scripts.
 
 **Input handling**
-- Event fields are treated as untrusted. The terminal id must look like `ttys012` before it reaches an AppleScript. The transcript path must be a `.jsonl` file under `~/.claude/projects/`. Messages over 1 MB are dropped.
+- Event fields are treated as untrusted. The terminal id must look like `ttys012` before it reaches an AppleScript. Ping reads the git branch straight from `.git/HEAD`; it never runs git. The transcript path must be a `.jsonl` file under `~/.claude/projects/`. Messages over 1 MB are dropped.
 - A reply is typed into a terminal only if `claude` is the program currently running there. If Claude has exited, the tab is a plain shell and pressing Enter would run your text as a command, so Ping jumps to the tab instead.
 
 **Known limits**
@@ -112,7 +123,9 @@ Ping sits in the path of your agent's permission prompts, so it's built to fail 
 ```
 Sources/Ping/      the app (SwiftUI + AppKit, built with plain swiftc)
 hooks/             the hook scripts, bundled into the app
+assets/            the app icon
 build.sh           builds .build/Ping.app
+tools/             renders the icon (icon.sh) and the screenshots (screenshots.sh) from the app's own views
 research/          notes on agent dashboards and notch apps
 BACKLOG.md         what's done and what's next
 ```

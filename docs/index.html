@@ -92,11 +92,18 @@
   .hint::before { content: "←"; }
 
   /* The notch */
-  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 320px; height: 37px; background: #000; border-radius: 0 0 12px 12px; transition: width .5s cubic-bezier(.3,1.4,.5,1), height .5s cubic-bezier(.3,1.4,.5,1), border-radius .4s; overflow: hidden; z-index: 5; cursor: default; }
-  .notch.open { width: 400px; border-radius: 0 0 24px 24px; }
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 358px; height: 37px; background: #000; border-radius: 0 0 12px 12px; transition: width .5s cubic-bezier(.3,1.4,.5,1), height .5s cubic-bezier(.3,1.4,.5,1), border-radius .4s; overflow: hidden; z-index: 5; cursor: default; }
+  .notch.open { width: 440px; border-radius: 0 0 24px 24px; }
   .notch .cam { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 190px; height: 32px; }
   .ear { position: absolute; top: 0; height: 32px; width: 60px; display: flex; align-items: center; justify-content: center; gap: 5px; transition: opacity .2s; }
-  .ear.l { left: 0; } .ear.r { right: 0; font: 600 12px/1 ui-rounded, -apple-system, sans-serif; }
+  .ear.l { left: 0; } .ear.r { right: 0; width: 84px; font: 600 12px/1 ui-rounded, -apple-system, sans-serif; }
+  .ear.l { width: 84px; }
+  .who { display: inline-flex; align-items: center; gap: 4px; animation: drop .35s cubic-bezier(.3,1.4,.5,1); }
+  @keyframes drop { from { transform: translateY(-8px); opacity: 0; } }
+  .bars { display: flex; gap: 2px; align-items: center; height: 12px; }
+  .bars i { width: 2.5px; border-radius: 2px; background: var(--orb); box-shadow: 0 0 4px var(--orb); animation: bar 1.2s ease-in-out infinite; }
+  .bars i:nth-child(2) { animation-delay: -.25s; } .bars i:nth-child(3) { animation-delay: -.5s; }
+  @keyframes bar { 0%, 100% { height: 4px; } 50% { height: 10px; } }
   .orb { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--c); box-shadow: 0 0 6px var(--c); }
   .orb.work { --c: var(--orb); }
   .orb.turn { --c: var(--green); animation: breathe 3.9s ease-in-out infinite; }
@@ -144,6 +151,10 @@
   .card .acts button { height: 26px; padding: 0 14px; border-radius: 999px; border: 0; font: 600 12px/1 -apple-system, sans-serif; cursor: pointer; color: #fff; background: rgba(255,255,255,.14); transition: transform .12s; }
   .card .acts button:active { transform: scale(.95); }
   .card .acts .allow { background: var(--green); color: #000; }
+  .card .acts .sess { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+  .card .rule { font-size: 11px; color: rgba(255,255,255,.4); margin: -2px 0 10px; }
+  .row .when { flex: none; font-size: 11px; color: rgba(255,255,255,.4); }
+  .row .when.w { color: var(--orange); font-weight: 600; }
   .card .acts .term { margin-left: auto; background: none; color: rgba(255,255,255,.6); }
 
   /* Sections */
@@ -170,6 +181,8 @@
   .pane p { color: var(--dim); font-size: 14.5px; margin-top: 14px; }
   .note { margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: rgba(240,158,38,.08); border: 1px solid rgba(240,158,38,.2); font-size: 14px; color: var(--dim); }
   .note b { color: var(--orange); }
+  .first { margin-top: 14px; font-size: 13.5px; color: var(--faint); }
+  .first b { color: var(--dim); font-weight: 600; }
 
   .points { padding-top: 72px; }
   .points .grid { margin-top: 0; }
@@ -231,7 +244,7 @@
       <a class="btn primary" href="https://github.com/thevahidal/ping/releases/latest/download/Ping.dmg"> Download for Mac</a>
       <div class="copy"><code>brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping</code><button data-copy="brew trust --cask thevahidal/tap/ping && brew install --cask thevahidal/tap/ping">Copy</button></div>
     </div>
-    <p class="meta">macOS 14+ · Apple silicon with a notch · Claude Code CLI &amp; desktop</p>
+    <p class="meta">macOS 14+ · Apple silicon · Claude Code CLI &amp; desktop</p>
 
     <div class="stage">
       <div class="screen">
@@ -254,15 +267,15 @@
             <div class="row" data-k="api">
               <i class="orb need"></i>
               <div class="body">
-                <div class="top"><i class="app cli"></i><span class="t">Fix the login redirect loop</span><span class="sp"></span><span class="badge" style="--bc:var(--blue)">plan</span><span class="repo">api</span></div>
-                <div class="d"><span class="q">Ship the fix to staging now?</span><span class="m">Opus 5.5 · high</span></div>
+                <div class="top"><i class="app cli"></i><span class="t">Fix the login redirect loop</span><span class="sp"></span><span class="badge" style="--bc:var(--blue)">plan</span><span class="when w">waiting 4m</span></div>
+                <div class="d"><span class="q">Ship the fix to staging now?</span><span class="m">api ⎇ fix-redirect · Opus 5.5</span></div>
               </div>
               <span class="reply">↩</span>
             </div>
             <div class="row">
               <i class="orb work"></i>
               <div class="body">
-                <div class="top"><i class="app"></i><span class="t">Migrate billing to Stripe v3</span><span class="sp"></span><span class="badge" style="--bc:var(--teal)">auto</span><span class="repo">billing</span></div>
+                <div class="top"><i class="app"></i><span class="t">Migrate billing to Stripe v3</span><span class="sp"></span><span class="badge" style="--bc:var(--teal)">auto</span><span class="when">7m</span></div>
                 <div class="d"><span>Edit: webhooks.ts</span><span class="m">Sonnet 5.5 · medium</span></div>
                 <div class="sub"><b>↳ Explore</b> · find every place that reads invoice totals · Grep: invoice.total</div>
               </div>
@@ -270,15 +283,15 @@
             <div class="row">
               <i class="orb turn"></i>
               <div class="body">
-                <div class="top"><i class="app cli"></i><span class="t">Write tests for the parser</span><span class="sp"></span><span class="badge" style="--bc:rgba(255,255,255,.55)">ask</span><span class="repo">lexer</span></div>
-                <div class="d"><span>All 48 tests pass. Want me to add fuzzing? · 2 min</span><span class="m">Opus 5.5 · low</span></div>
+                <div class="top"><i class="app cli"></i><span class="t">Write tests for the parser</span><span class="sp"></span><span class="badge" style="--bc:rgba(255,255,255,.55)">ask</span><span class="when">2m ago</span></div>
+                <div class="d"><span>All 48 tests pass. Want me to add fuzzing?</span><span class="m">Opus 5.5 · low</span></div>
               </div>
               <span class="reply">↩</span>
             </div>
             <div class="row">
               <i class="orb seen"></i>
               <div class="body">
-                <div class="top"><i class="app"></i><span class="t" style="opacity:.6">Upgrade to React 20</span><span class="sp"></span><span class="badge" style="--bc:var(--violet)">edits</span><span class="repo">web</span></div>
+                <div class="top"><i class="app"></i><span class="t" style="opacity:.6">Upgrade to React 20</span><span class="sp"></span><span class="badge" style="--bc:var(--violet)">edits</span><span class="when">1h ago</span></div>
                 <div class="d"><span>Done. The bundle is 18% smaller.</span><span class="m">Opus 5.5 · high</span></div>
               </div>
             </div>
@@ -286,13 +299,15 @@
 
           <div class="panel" id="card">
             <div class="card">
-              <div class="h"><i class="orb need"></i><b>api</b><span>wants to use Bash</span>
+              <div class="h"><i class="orb need"></i><b>Fix the login redirect loop</b><span>wants to use Bash · api</span>
                 <svg class="ring" viewBox="0 0 14 14"><circle id="ringc" cx="7" cy="7" r="6"/></svg></div>
-              <div class="cmd mono">rm -rf node_modules &amp;&amp; npm ci &amp;&amp; npm run migrate</div>
+              <div class="cmd mono">npm run test:integration -- --runInBand</div>
+              <div class="rule">For session: always allow Bash(npm run test:*)</div>
               <div class="acts">
                 <button class="allow" data-answer>Allow ⌥Y</button>
+                <button class="sess" data-answer>For session</button>
                 <button data-answer>Deny ⌥N</button>
-                <button class="term" data-answer>Use terminal</button>
+                <button class="term" data-answer>Terminal</button>
               </div>
             </div>
           </div>
@@ -305,9 +320,9 @@
 <section id="features" class="points">
   <div class="wrap reveal">
     <div class="grid g3">
-      <div class="tile"><div class="ic" style="--ic:var(--green)">◉</div><h3>See every agent</h3><p>Working, your turn or needs you, at a glance. Even in full screen.</p></div>
-      <div class="tile"><div class="ic" style="--ic:var(--orange)">✓</div><h3>Approve in place</h3><p>Allow or deny the exact command from the notch. ⌥Y / ⌥N.</p></div>
-      <div class="tile"><div class="ic" style="--ic:var(--orb)">↩</div><h3>Reply and jump</h3><p>Answer an agent without switching, or click to land in its tab.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--green)">◉</div><h3>See every agent</h3><p>The notch names the agent that needs you and how long it has waited.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--orange)">✓</div><h3>Approve in place</h3><p>Allow the exact command once or for the session, or deny it. ⌥Y / ⌥N.</p></div>
+      <div class="tile"><div class="ic" style="--ic:var(--orb)">↩</div><h3>Reply and jump</h3><p>Answer an agent without switching, or click to land in its tab. Ghostty, iTerm2, Terminal.</p></div>
     </div>
     <p class="trust">Runs entirely on your Mac · fails safe to Claude's own prompt · <a href="https://github.com/thevahidal/ping#security">open source</a></p>
   </div>
@@ -338,7 +353,7 @@ open .build/Ping.app</pre>
         <p>Needs the Xcode Command Line Tools (<code>xcode-select --install</code>).</p>
       </div>
       <div class="pane on" style="padding-top:0">
-        <div class="note"><b>First open:</b> Ping isn't signed with an Apple Developer ID yet, so macOS warns that it can't verify the developer. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>. Then Ping asks, in the notch, before it connects to Claude Code.</div>
+        <p class="first"><b>First open:</b> macOS asks you to allow Ping once. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>. Then Ping asks, in the notch, before it connects to Claude Code.</p>
       </div>
     </div>
   </div>
@@ -376,16 +391,16 @@ open .build/Ping.app</pre>
   const ring = document.getElementById('ringc');
 
   const scenes = [
-    { mood: 'working', orbs: ['work', 'work', 'turn', 'seen'], waiting: 1, ms: 3600 },
-    { mood: 'turn', orbs: ['turn', 'work', 'turn', 'seen'], waiting: 2, ms: 3200 },
-    { mood: 'need', orbs: ['need', 'work', 'turn', 'seen'], waiting: 3, ms: 5200, card: true },
+    { mood: 'working', orbs: ['work', 'work', 'seen'], ms: 3600 },
+    { mood: 'turn', orbs: ['turn', 'work', 'seen'], who: ['✓', 'lexer'], ms: 3200 },
+    { mood: 'need', orbs: ['need', 'work', 'turn', 'seen'], who: ['✋', 'api'], ms: 5200, card: true },
   ];
   let i = 0, hovering = false, cardOpen = false, timer, ringStart;
 
   function render(s) {
     notch.dataset.mood = s.mood;
     dots.innerHTML = s.orbs.map(o => `<i class="orb ${o}"></i>`).join('');
-    count.textContent = s.waiting || '';
+    count.innerHTML = s.who ? `<span class="who">${s.who[0]} ${s.who[1]}</span>` : '<span class="bars"><i></i><i></i><i></i></span>';
     count.style.color = s.mood === 'need' ? 'var(--orange)' : 'var(--green)';
     cardOpen = !!s.card;
     if (cardOpen) ringStart = performance.now();
@@ -398,7 +413,7 @@ open .build/Ping.app</pre>
     notch.classList.toggle('open', open);
     card.classList.toggle('on', showCard);
     list.classList.toggle('on', hovering);
-    notch.style.height = !open ? '37px' : showCard ? '150px' : (36 + list.scrollHeight + 10) + 'px';
+    notch.style.height = !open ? '37px' : showCard ? '172px' : (36 + list.scrollHeight + 10) + 'px';
   }
 
   function next() {
