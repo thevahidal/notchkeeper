@@ -37,6 +37,10 @@ struct Session: Identifiable, Codable {
     var subagents: [Subagent] = []
     // File name → last time this agent (or its subagents) edited it.
     var edited: [String: Date] = [:]
+    // Work at risk in its folder, like "3 uncommitted · 2 unpushed".
+    var unsaved: String?
+    // The agent is gone; kept only because it left unsaved work behind.
+    var ended = false
     var state: SessionState
     // "Remind me later": hidden from alerts until then.
     var snoozedUntil: Date?
@@ -227,6 +231,8 @@ final class SessionStore: ObservableObject {
     func jump(to session: Session) {
         if session.isItem {
             if let url = session.url.flatMap(URL.init) { NSWorkspace.shared.open(url) }
+        } else if session.ended {
+            Jump.open(folder: session.cwd, for: session)
         } else if session.background {
             ClaudeCLI.attach(session.id)
         } else {
@@ -344,9 +350,7 @@ final class SessionStore: ObservableObject {
 
         if name == "SessionEnd" {
             if let session = sessions.first(where: { $0.id == id }) { ActivityLog.record("end", session) }
-            queued[id] = nil
-            sessions.removeAll { $0.id == id }
-            return
+            return end([id])
         }
 
         // Sent after ~60s of no reply; it changes nothing about the session.
@@ -388,6 +392,7 @@ final class SessionStore: ObservableObject {
             }
         }
         let i = sessions.firstIndex { $0.id == id }!
+        sessions[i].ended = false
         noteEdit(i, name, event)
         let entered = sessions[i].state != state || isNew
         if sessions[i].state != state {
@@ -445,7 +450,8 @@ final class SessionStore: ObservableObject {
         let hourAgo = Date().addingTimeInterval(-3600)
         sessions[i].edited = sessions[i].edited.filter { $0.value > hourAgo }
         sessions[i].edited[file] = Date()
-        ActivityLog.record("edit", desk: sessions[i].desk, session: sessions[i].id, agent: sessions[i].agent ?? "claude", detail: file)
+        ActivityLog.record("edit", desk: sessions[i].desk, session: sessions[i].id, agent: sessions[i].agent ?? "claude", detail: file,
+                           file: (event["tool_input"] as? [String: Any])?["file_path"] as? String)
     }
 
     static var idleSeconds: TimeInterval {
@@ -514,23 +520,89 @@ final class SessionStore: ObservableObject {
         sessions.removeAll { $0.id == id }
     }
 
+    // Leaves agents with unsaved work; those close one at a time, on purpose.
     func clearFinished() {
-        sessions.filter { $0.state == .yourTurn }.forEach { dismiss($0.id) }
+        sessions.filter { $0.state == .yourTurn && !$0.ended }.forEach { dismiss($0.id) }
     }
 
     // Fallback for sessions that ended without a SessionEnd. Anything still waiting on you stays a day, so it isn't forgotten.
+    // Ended agents with unsaved work stay until it's saved or you close them.
     func pruneStale() {
         sessions.removeAll { s in
+            if s.ended { return false }
             let waiting = s.state == .needsYou || (s.state == .yourTurn && !s.seen) || s.snoozedUntil != nil
             let ttl: TimeInterval = waiting ? 24 * 3600 : s.seen ? 10 * 60 : 30 * 60
             return s.lastSeen < Date().addingTimeInterval(-ttl)
         }
         dropClosedTerminals()
+        recheckUnsaved()
+    }
+
+    // The agent is gone. Unsaved work in its folder keeps it on the notch, once per folder; otherwise it's dropped.
+    private func end(_ ids: [String]) {
+        ids.forEach { queued[$0] = nil }
+        let folders = sessions.filter { ids.contains($0.id) }.map { ($0.id, $0.cwd) }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let found = folders.map { ($0.0, $0.1, Self.unsavedWork($0.1)) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                for (id, cwd, work) in found {
+                    // A live agent in the same folder already shows it.
+                    let covered = self.sessions.contains { $0.id != id && $0.cwd == cwd && !ids.contains($0.id) }
+                    guard let work, !covered, let i = self.sessions.firstIndex(where: { $0.id == id }) else {
+                        self.sessions.removeAll { $0.id == id }
+                        continue
+                    }
+                    self.sessions[i].ended = true
+                    self.sessions[i].unsaved = work
+                    self.sessions[i].state = .yourTurn
+                    self.sessions[i].detail = "Ended with unsaved work"
+                    self.sessions[i].question = nil
+                    self.sessions[i].subagents = []
+                    self.sessions[i].seen = false
+                    self.sessions[i].since = Date()
+                    self.sessions[i].lastSeen = Date()
+                    self.chime(.yourTurn)
+                }
+            }
+        }
+    }
+
+    // You may commit or push from elsewhere; ended agents go once their folder is clean.
+    private func recheckUnsaved() {
+        let flagged = sessions.filter { $0.ended }.map { ($0.id, $0.cwd) }
+        guard !flagged.isEmpty else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let found = flagged.map { ($0.0, Self.unsavedWork($0.1)) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                for (id, work) in found {
+                    guard let i = self.sessions.firstIndex(where: { $0.id == id }) else { continue }
+                    if work == nil { self.sessions.remove(at: i) } else { self.sessions[i].unsaved = work }
+                }
+            }
+        }
+    }
+
+    // Uncommitted files, and commits on no remote. Read-only, and skips git's optional locks so it never blocks the agent's own git.
+    static func unsavedWork(_ cwd: String) -> String? {
+        guard !cwd.isEmpty, gitBranch(cwd) != nil else { return nil }
+        func git(_ args: [String]) -> (Int32, String) { ClaudeCLI.run("/usr/bin/git", ["--no-optional-locks", "-C", cwd] + args) }
+        let (status, changes) = git(["status", "--porcelain"])
+        guard status == 0 else { return nil }
+        let uncommitted = changes.split(whereSeparator: \.isNewline).count
+        // A repo with no remote is local on purpose; its commits aren't "unpushed".
+        var unpushed = 0
+        if !git(["remote"]).1.isEmpty, case let (0, out) = git(["rev-list", "--count", "HEAD", "--not", "--remotes"]) {
+            unpushed = Int(out.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+        }
+        let parts = [uncommitted > 0 ? "\(uncommitted) uncommitted" : nil, unpushed > 0 ? "\(unpushed) unpushed" : nil].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     // A closed tab can skip SessionEnd; once nothing runs on its tty, the agent is gone.
     private func dropClosedTerminals() {
-        let ttys = Set(sessions.compactMap(\.tty))
+        let ttys = Set(sessions.filter { !$0.ended }.compactMap(\.tty))
         guard !ttys.isEmpty else { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let (status, out) = ClaudeCLI.run("/bin/ps", ["-A", "-o", "tty="])
@@ -539,7 +611,8 @@ final class SessionStore: ObservableObject {
             let closed = ttys.subtracting(live)
             guard !closed.isEmpty else { return }
             DispatchQueue.main.async {
-                self?.sessions.removeAll { $0.tty.map(closed.contains) ?? false }
+                guard let self else { return }
+                self.end(self.sessions.filter { !$0.ended && ($0.tty.map(closed.contains) ?? false) }.map(\.id))
             }
         }
     }

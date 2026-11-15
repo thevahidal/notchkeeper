@@ -13,11 +13,12 @@ enum ActivityLog {
         record(kind, desk: session.desk, session: session.id, agent: session.agent ?? "claude", title: session.title, detail: session.detail)
     }
 
-    static func record(_ kind: String, desk: String, session: String, agent: String? = nil, title: String = "", detail: String) {
+    static func record(_ kind: String, desk: String, session: String, agent: String? = nil, title: String = "", detail: String, file: String? = nil) {
         guard enabled else { return }
         var entry: [String: Any] = ["time": ISO8601DateFormatter().string(from: Date()), "kind": kind, "desk": desk,
                                     "session": session, "detail": String(detail.prefix(200))]
         if let agent { entry["agent"] = agent }
+        if let file { entry["path"] = file }
         if !title.isEmpty { entry["title"] = String(title.prefix(120)) }
         AuditLog.append(entry, to: path)
     }
@@ -25,6 +26,8 @@ enum ActivityLog {
     struct Entry {
         let time: Date
         let kind, desk, session, agent, title, detail: String
+        // Edits only: the full file path.
+        var path = ""
     }
 
     private static var cache: (modified: Date, entries: [Entry])?
@@ -41,7 +44,7 @@ enum ActivityLog {
                       let time = (o["time"] as? String).flatMap(iso.date), time >= start else { return nil }
                 return Entry(time: time, kind: o["kind"] as? String ?? "", desk: o["desk"] as? String ?? "",
                              session: o["session"] as? String ?? "", agent: o["agent"] as? String ?? "",
-                             title: o["title"] as? String ?? "", detail: o["detail"] as? String ?? "")
+                             title: o["title"] as? String ?? "", detail: o["detail"] as? String ?? "", path: o["path"] as? String ?? "")
             }
             cache = (modified, entries)
         }
