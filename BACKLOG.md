@@ -24,7 +24,7 @@ Notchkeeper (formerly Ping).
 - **Approval log**: `~/.notchkeeper/approvals.log`, JSON lines, 600, rotated at 1 MB.
 - **While you were away**: after 5+ minutes idle, one card on return with who finished, who waits and files edited. Logic not exercised live yet (needs real idle time).
 - **Renamed to Notchkeeper** (v0.2.0): repo, release, tap cask (with `ping` → `notchkeeper` rename), site at thevahidal.github.io/notchkeeper; connecting swaps old Ping hooks.
-- **Background agents** (v0.3.0): + in the notch runs `claude --bg -n <name> [-w <name>] <prompt>`; background sessions (from `claude agents --json`) are tagged and open with `claude attach` (Ghostty, else Terminal). Tested: launch and detection with a real agent.
+- **Background agents** (v0.3.0): + in the notch runs `claude --bg -n <name> [-w <name>] <prompt>`; background sessions (from `claude agents --json`) are tagged and open with `claude attach`: clicking again focuses the attached tab; otherwise a new tab in Ghostty's front window (Settings toggle for a new window), else Terminal. Tested: launch and detection with a real agent.
 - **Follow-up queue**: messages typed while an agent works go out when the turn ends without a question. Not exercised live end to end.
 - **Tell Claude**: deny with a message (`deny-message "<json string>"` → hook `decision.message`). Hook output tested; Claude reading the message not tested live.
 - **Settings window.** One place to configure everything (agents, notch, plugins, approvals, command line); opens on first launch, on reopening the app and from the menu bar. Connect/disconnect and plugin toggles tested in a scratch home.

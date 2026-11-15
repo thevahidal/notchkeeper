@@ -77,22 +77,48 @@
   .copy button:hover { background: rgba(255,255,255,.16); }
   .meta { margin-top: 18px; font-size: 13px; color: var(--faint); }
 
-  /* The demo screen */
-  .stage { position: relative; margin: 64px auto 0; max-width: 980px; }
-  .screen { position: relative; aspect-ratio: 16 / 9.4; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 40px 120px rgba(0,0,0,.7), 0 0 0 10px #0c0c10, 0 0 0 11px rgba(255,255,255,.07); background: radial-gradient(120% 90% at 20% 10%, #2a2160 0%, transparent 55%), radial-gradient(90% 80% at 85% 20%, #0f4a3f 0%, transparent 55%), radial-gradient(80% 70% at 60% 100%, #4a2a10 0%, transparent 60%), #0b0b12; }
+  /* The demo screen: a fixed 980x576 canvas, scaled to fit */
+  .stage { --s: 1; position: relative; margin: 64px auto 0; max-width: 980px; height: calc(576px * var(--s)); }
+  .screen { position: relative; width: 980px; height: 576px; transform: scale(var(--s)); transform-origin: 0 0; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 40px 120px rgba(0,0,0,.7), 0 0 0 10px #0c0c10, 0 0 0 11px rgba(255,255,255,.07); background: radial-gradient(120% 90% at 20% 10%, #2a2160 0%, transparent 55%), radial-gradient(90% 80% at 85% 20%, #0f4a3f 0%, transparent 55%), radial-gradient(80% 70% at 60% 100%, #4a2a10 0%, transparent 60%), #0b0b12; }
   .menubar { position: absolute; inset: 0 0 auto; height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 12.5px; color: rgba(255,255,255,.85); background: rgba(0,0,0,.18); }
   .menubar .l, .menubar .r { display: flex; gap: 18px; align-items: center; }
   .menubar .l b { font-weight: 700; }
-  .windows { position: absolute; left: 6%; right: 6%; top: 17%; bottom: 7%; display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; }
-  .win { border-radius: 12px; background: rgba(14,14,20,.78); border: 1px solid rgba(255,255,255,.08); padding: 34px 18px 18px; position: relative; overflow: hidden; font-size: 12px; color: var(--faint); }
-  .win::before { content: ""; position: absolute; top: 12px; left: 14px; width: 42px; height: 10px; background: radial-gradient(circle at 5px 5px, #ff5f57 4.5px, transparent 5px), radial-gradient(circle at 21px 5px, #febc2e 4.5px, transparent 5px), radial-gradient(circle at 37px 5px, #28c840 4.5px, transparent 5px); }
-  .win .ln { height: 8px; border-radius: 4px; background: rgba(255,255,255,.07); margin: 9px 0; }
-  .win .ln.s { width: 40%; } .win .ln.m { width: 70%; } .win .ln.c { background: rgba(92,201,166,.25); width: 55%; }
-  .hint { position: absolute; top: 58px; left: 50%; transform: translateX(170px); font-size: 12px; color: rgba(255,255,255,.55); display: flex; align-items: center; gap: 6px; pointer-events: none; transition: opacity .3s; }
+  .hint { position: absolute; top: 44px; left: 50%; transform: translateX(190px); z-index: 999; font-size: 12px; color: rgba(255,255,255,.55); display: flex; align-items: center; gap: 6px; pointer-events: none; transition: opacity .3s; }
   .hint::before { content: "←"; }
 
+  /* Windows on the demo desktop */
+  .win { position: absolute; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; text-align: left; background: #111117; border: 1px solid rgba(255,255,255,.09); box-shadow: 0 18px 50px rgba(0,0,0,.5); transition: border-color .3s, box-shadow .3s; }
+  .win.focus { border-color: rgba(255,255,255,.22); box-shadow: 0 26px 70px rgba(0,0,0,.65); }
+  .win.jump { animation: jump .7s ease-out; }
+  @keyframes jump { from { box-shadow: 0 0 0 0 rgba(176,168,237,.8); } to { box-shadow: 0 0 0 16px rgba(176,168,237,0); } }
+  .win .bar { flex: none; position: relative; height: 28px; display: grid; place-items: center; font-size: 11.5px; color: rgba(255,255,255,.45); background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.05); }
+  .win .bar::before { content: ""; position: absolute; top: 9px; left: 12px; width: 42px; height: 10px; background: radial-gradient(circle at 5px 5px, #ff5f57 4.5px, transparent 5px), radial-gradient(circle at 21px 5px, #febc2e 4.5px, transparent 5px), radial-gradient(circle at 37px 5px, #28c840 4.5px, transparent 5px); }
+  .out { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 3px; padding: 10px 14px 12px; font: 11.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: rgba(255,255,255,.78); }
+  .out p { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .out .dim { color: rgba(255,255,255,.35); }
+  .out .u { color: #fff; background: rgba(255,255,255,.06); border-radius: 4px; padding: 2px 6px; margin: 4px -6px; }
+  .out .u::before { content: "> "; color: rgba(255,255,255,.4); }
+  #w-cx .u::before { content: "› "; }
+  .out .tool i { font-style: normal; color: var(--green); }
+  .out .say i { color: #fff; }
+  #w-gm .tool i { color: var(--blue); }
+  .out .res { color: rgba(255,255,255,.5); padding-left: 1.3em; }
+  .out .res::before { content: "⎿  "; }
+  #w-cx .res::before { content: "└ "; }
+  .out .w { color: var(--orange); }
+  .out .ok { color: var(--green); }
+  .out .st { color: var(--coral); animation: breathe 1.6s ease-in-out infinite; }
+  .out .st:empty { display: none; }
+  #w-desk { background: #201d1b; }
+  #w-desk .out { font: 12.5px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; gap: 8px; }
+  #w-desk .me { align-self: flex-end; max-width: 80%; padding: 7px 11px; border-radius: 12px; background: rgba(255,255,255,.09); color: #fff; }
+  #w-desk .ai { color: rgba(255,255,255,.8); }
+  #w-desk .ai.q { color: #fff; font-weight: 500; }
+  #w-desk .chip { align-self: flex-start; padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); font-size: 11px; color: rgba(255,255,255,.5); }
+  #w-desk .st { color: rgba(255,255,255,.45); }
+
   /* The notch */
-  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 358px; height: 37px; background: #000; border-radius: 0 0 12px 12px; transition: width .5s cubic-bezier(.3,1.4,.5,1), height .5s cubic-bezier(.3,1.4,.5,1), border-radius .4s; overflow: hidden; z-index: 5; cursor: default; }
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 358px; height: 37px; background: #000; border-radius: 0 0 12px 12px; transition: width .5s cubic-bezier(.3,1.4,.5,1), height .5s cubic-bezier(.3,1.4,.5,1), border-radius .4s; overflow: hidden; z-index: 1000; cursor: default; }
   .notch.open { width: 440px; border-radius: 0 0 24px 24px; }
   .notch .cam { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 190px; height: 32px; }
   .ear { position: absolute; top: 0; height: 32px; width: 60px; display: flex; align-items: center; justify-content: center; gap: 5px; transition: opacity .2s; }
@@ -136,9 +162,14 @@
   .row .d span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row .d .q { color: rgba(255,255,255,.88); }
   .row .m { flex: none; font-size: 11px; color: rgba(255,255,255,.35); }
-  .row .sub { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; max-width: none; }
-  .row .sub b { color: var(--teal); font-weight: 500; }
-  .reply { flex: none; align-self: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.1); display: grid; place-items: center; font-size: 12px; color: rgba(255,255,255,.75); }
+  .row { margin: 0 -8px; padding: 6px 8px; }
+  .row.hl { background: rgba(255,255,255,.08); }
+  .row.nojump { cursor: default; }
+  .row .app.codex { background: linear-gradient(135deg, #f4f4f6, #8e8e9a); }
+  .row .app.gemini { background: linear-gradient(135deg, #73a6fa, #a07cf0); }
+  .row .app.codex::after, .row .app.gemini::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; border-radius: 2px; background: #1d1d24; border: 1px solid #555; }
+  .cnt { display: inline-flex; align-items: center; gap: 3px; font: 600 11px/1 ui-rounded, -apple-system, sans-serif; color: rgba(255,255,255,.8); }
+  .empty { padding: 8px 0 2px; font-size: 12px; color: rgba(255,255,255,.4); }
 
   .card { text-align: left; padding-top: 6px; }
   .card .h { display: flex; align-items: center; gap: 8px; font-size: 13px; }
@@ -160,6 +191,31 @@
   .row .when { flex: none; font-size: 11px; color: rgba(255,255,255,.4); }
   .row .when.w { color: var(--orange); font-weight: 600; }
   .card .acts .term { margin-left: auto; background: none; color: rgba(255,255,255,.6); }
+  .card .acts button { white-space: nowrap; padding: 0 12px; }
+  .card .acts button:disabled { opacity: .45; cursor: default; }
+  .field { flex: 1; min-height: 30px; padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.08); font-size: 12px; color: #fff; text-align: left; }
+  .field::after { content: ""; display: inline-block; width: 1px; height: 13px; margin-left: 1px; vertical-align: -2px; background: #fff; animation: breathe 1s steps(1) infinite; }
+  .tellbox { display: none; gap: 8px; align-items: center; }
+  .tellbox.on, .card.telling .tellbox { display: flex; }
+  .card.telling .acts { display: none; }
+  .tellbox button { flex: none; height: 28px; padding: 0 14px; border-radius: 999px; border: 0; font: 600 12px/1 -apple-system, sans-serif; cursor: pointer; background: var(--green); color: #000; }
+  .hist { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: rgba(255,255,255,.6); }
+  .hist p { max-width: 85%; }
+  .hist .you { align-self: flex-end; padding: 4px 9px; border-radius: 10px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.85); }
+  .hist .ask { color: var(--orange); }
+  #new .field { display: block; margin: 10px 0 8px; }
+  .opt { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; border: 0; background: none; color: rgba(255,255,255,.8); font: 12px/1 -apple-system, sans-serif; cursor: pointer; }
+  .opt i { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid rgba(255,255,255,.4); display: grid; place-items: center; font: normal 700 10px/1 sans-serif; color: #000; }
+  .opt.on i { background: var(--green); border-color: var(--green); }
+  .opt.on i::before { content: "✓"; }
+  .opt span { font: 11px/1 ui-monospace, monospace; color: var(--teal); opacity: 0; transition: opacity .2s; }
+  .opt.on span { opacity: 1; }
+
+  .chapters { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 30px; }
+  .chapters button { height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--faint); font: 600 13px/1 inherit; cursor: pointer; transition: color .2s, background .2s, border-color .2s; }
+  .chapters button:hover { color: var(--dim); }
+  .chapters button.on { color: var(--text); background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.2); }
+  .caption { max-width: 620px; min-height: 3.2em; margin: 14px auto 0; font-size: 15px; color: var(--dim); }
 
   /* Sections */
   section { position: relative; padding: 120px 0 0; }
@@ -212,10 +268,11 @@
     nav .btn { margin-left: auto; }
     .hero { padding-top: 64px; }
     .g3 { grid-template-columns: 1fr; }
-    .windows { display: none; }
-    .screen { aspect-ratio: auto; height: 300px; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
+    .win { display: none; }
+    .stage { height: auto; }
+    .screen { width: auto; height: 340px; transform: none; border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.7); }
     .menubar .l, .menubar .r { display: none; }
-    .notch { transform: translateX(-50%) scale(.82); transform-origin: top center; }
+    .notch { transform: translateX(-50%) scale(.76); transform-origin: top center; }
     .copy code { font-size: 12px; }
     section { padding-top: 88px; }
   }
@@ -250,56 +307,25 @@
     </div>
     <p class="meta">macOS 14+ · Apple silicon · Claude Code, Codex &amp; Gemini CLI</p>
 
-    <div class="stage">
+    <div class="stage" id="stage">
       <div class="screen">
         <div class="menubar">
-          <div class="l"><b></b><b>Ghostty</b><span>Shell</span><span>Edit</span><span>View</span></div>
-          <div class="r"><span>〰</span><span>⌁ 92%</span><span id="clock">Sat 9:41</span></div>
+          <div class="l"><b></b><b id="appname">Ghostty</b><span>File</span><span>Edit</span><span>View</span><span>Window</span></div>
+          <div class="r"><span>〰</span><span>⌁ 92%</span><span>Sat 9:41</span></div>
         </div>
-        <div class="windows">
-          <div class="win"><div class="ln m"></div><div class="ln c"></div><div class="ln"></div><div class="ln s"></div><div class="ln m"></div><div class="ln c"></div><div class="ln s"></div></div>
-          <div class="win"><div class="ln s"></div><div class="ln"></div><div class="ln m"></div><div class="ln"></div><div class="ln s"></div></div>
-        </div>
+
+        <div class="win" id="w-desk" style="left:24px;top:64px;width:370px;height:300px"><div class="bar">Claude · Code</div><div class="out"><p class="st"></p></div></div>
+        <div class="win" id="w-cx" style="left:618px;top:72px;width:338px;height:220px"><div class="bar">codex — billing</div><div class="out"><p class="st"></p></div></div>
+        <div class="win" id="w-gm" style="left:640px;top:310px;width:316px;height:242px"><div class="bar">gemini — parser</div><div class="out"><p class="st"></p></div></div>
+        <div class="win" id="w-cc" style="left:226px;top:196px;width:404px;height:356px"><div class="bar">claude — api</div><div class="out"><p class="st"></p></div></div>
         <div class="hint" id="hint">hover the notch</div>
 
-        <div class="notch" id="notch" data-mood="working">
+        <div class="notch" id="notch">
           <div class="ear l" id="dots"></div>
           <div class="ear r" id="count"></div>
           <div class="glow"></div>
 
-          <div class="panel" id="list">
-            <div class="row" data-k="api">
-              <i class="orb need"></i>
-              <div class="body">
-                <div class="top"><i class="app cli"></i><span class="t">Fix the login redirect loop</span><span class="sp"></span><span class="badge" style="--bc:var(--blue)">plan</span><span class="when w">waiting 4m</span></div>
-                <div class="d"><span class="q">Ship the fix to staging now?</span><span class="m">api ⎇ fix-redirect · Opus 5.5</span></div>
-              </div>
-              <span class="reply">↩</span>
-            </div>
-            <div class="row">
-              <i class="orb work"></i>
-              <div class="body">
-                <div class="top"><i class="app"></i><span class="t">Migrate billing to Stripe v3</span><span class="sp"></span><span class="badge" style="--bc:var(--teal)">auto</span><span class="when">7m</span></div>
-                <div class="d"><span>Edit: webhooks.ts</span><span class="m">Sonnet 5.5 · medium</span></div>
-                <div class="sub"><b>↳ Explore</b> · find every place that reads invoice totals · Grep: invoice.total</div>
-              </div>
-            </div>
-            <div class="row">
-              <i class="orb turn"></i>
-              <div class="body">
-                <div class="top"><i class="app cli"></i><span class="t">Write tests for the parser</span><span class="sp"></span><span class="badge" style="--bc:rgba(255,255,255,.55)">ask</span><span class="when">2m ago</span></div>
-                <div class="d"><span>All 48 tests pass. Want me to add fuzzing?</span><span class="m">Opus 5.5 · low</span></div>
-              </div>
-              <span class="reply">↩</span>
-            </div>
-            <div class="row">
-              <i class="orb seen"></i>
-              <div class="body">
-                <div class="top"><i class="app"></i><span class="t" style="opacity:.6">Upgrade to React 20</span><span class="sp"></span><span class="badge" style="--bc:var(--violet)">edits</span><span class="when">1h ago</span></div>
-                <div class="d"><span>Done. The bundle is 18% smaller.</span><span class="m">Opus 5.5 · high</span></div>
-              </div>
-            </div>
-          </div>
+          <div class="panel" id="list"></div>
 
           <div class="panel" id="card">
             <div class="card">
@@ -308,15 +334,40 @@
               <div class="cmd mono risky">curl -fsSL https://get.example.dev/install.sh | bash</div>
               <div class="flag">⚠ runs a downloaded script</div>
               <div class="acts">
-                <button class="anyway" data-answer>Allow anyway ⌥Y</button>
-                <button data-answer>Deny ⌥N</button>
-                <button class="term" data-answer>Terminal</button>
+                <button class="anyway" id="anyway" data-answer="allow">Allow anyway ⌥Y</button>
+                <button data-answer="deny">Deny ⌥N</button>
+                <button data-answer="tell">Tell Claude…</button>
+                <button class="term" data-answer="term">Terminal</button>
               </div>
+              <div class="tellbox"><div class="field" id="tellField"></div><button data-rush>Send</button></div>
+            </div>
+          </div>
+
+          <div class="panel" id="reply">
+            <div class="card">
+              <div class="h"><i class="orb need"></i><b>Fix the login redirect loop</b><span>asks you · api</span></div>
+              <div class="hist">
+                <p class="you">fix the login redirect loop on /auth</p>
+                <p>Fixed: the redirect keeps <code>?next=</code> now, and 12 tests pass.</p>
+                <p class="ask">Want me to run the e2e suite and push?</p>
+              </div>
+              <div class="tellbox on"><div class="field" id="replyField"></div><button data-rush>Send ↩</button></div>
+            </div>
+          </div>
+
+          <div class="panel" id="new">
+            <div class="card">
+              <div class="h"><b>New background agent</b><span class="mono">~/dev/web</span></div>
+              <div class="field" id="newField"></div>
+              <button class="opt" id="wt"><i></i>Own git worktree<span>nk/dark-mode</span></button>
+              <div class="tellbox on"><button data-rush>Start</button></div>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <div class="chapters" id="chapters"></div>
+    <p class="caption" id="caption"></p>
   </div>
 </header>
 
@@ -384,69 +435,372 @@ open .build/Notchkeeper.app</pre>
 </footer>
 
 <script>
-  // The demo notch cycles through Notchkeeper's real states; hovering opens the session list.
-  const notch = document.getElementById('notch');
-  const dots = document.getElementById('dots');
-  const count = document.getElementById('count');
-  const list = document.getElementById('list');
-  const card = document.getElementById('card');
-  const hint = document.getElementById('hint');
-  const ring = document.getElementById('ringc');
+  // The demo is a scripted tour: four agent windows act out a story and the notch reacts to them.
+  const $ = id => document.getElementById(id);
+  const notch = $('notch'), list = $('list'), dots = $('dots'), count = $('count'), hint = $('hint');
+  const ring = $('ringc'), anyway = $('anyway'), stage = $('stage'), wtBox = $('wt');
+  const P = { card: $('card'), reply: $('reply'), new: $('new') };
+  const cardBox = P.card.querySelector('.card');
+  const fields = [$('tellField'), $('replyField'), $('newField')];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const scenes = [
-    { mood: 'working', orbs: ['work', 'work', 'seen'], ms: 3600 },
-    { mood: 'turn', orbs: ['turn', 'work', 'seen'], who: ['✓', 'lexer'], ms: 3200 },
-    { mood: 'need', orbs: ['need', 'work', 'turn', 'seen'], who: ['✋', 'api'], ms: 5200, card: true },
-  ];
-  let i = 0, hovering = false, cardOpen = false, timer, ringStart;
+  const W = {};
+  for (const id of ['desk', 'cx', 'gm', 'cc']) {
+    const el = $('w-' + id);
+    W[id] = { el, out: el.querySelector('.out'), st: el.querySelector('.st') };
+  }
 
-  function render(s) {
-    notch.dataset.mood = s.mood;
-    dots.innerHTML = s.orbs.map(o => `<i class="orb ${o}"></i>`).join('');
-    count.innerHTML = s.who ? `<span class="who">${s.who[0]} ${s.who[1]}</span>` : '<span class="bars"><i></i><i></i><i></i></span>';
-    count.style.color = s.mood === 'need' ? 'var(--orange)' : 'var(--green)';
-    cardOpen = !!s.card;
-    if (cardOpen) ringStart = performance.now();
-    layout();
+  const AGENTS = {
+    api:     { win: 'cc', app: 'cli', title: 'Fix the login redirect loop', mode: 'ask', bc: 'rgba(255,255,255,.55)', meta: 'api ⎇ fix-redirect · Opus 5.5' },
+    billing: { win: 'cx', app: 'codex', title: 'Migrate billing to Stripe v3', meta: 'billing ⎇ stripe-v3 · Codex' },
+    parser:  { win: 'gm', app: 'gemini', title: 'Write tests for the tokenizer', meta: 'parser ⎇ main · Gemini CLI' },
+    notes:   { win: 'desk', app: '', title: 'Draft the v2.4 release notes', mode: 'edits', bc: 'var(--violet)', meta: 'site ⎇ main · Sonnet 5.5' },
+    dark:    { win: '', app: '', bg: true, title: 'Add dark mode to settings', mode: 'auto', bc: 'var(--teal)', meta: 'web ⎇ main · Opus 5.5' },
+  };
+
+  const STOP = new Error('stop');
+  const S = [];
+  let tok = {}, fast = false, rush = false, clock = 0, onScreen = true, hovering = false, peek = false;
+  let panel = null, choose = null, flash = null, wt = false, z = 10, ear = '';
+
+  const running = () => onScreen && !document.hidden;
+
+  // Time only moves while the demo is visible and nobody is reading the hovered list.
+  async function wait(ms) {
+    const my = tok;
+    if (fast || rush) { clock += ms; return; }
+    for (let left = ms; left > 0;) {
+      await new Promise(r => setTimeout(r, 50));
+      if (my !== tok) throw STOP;
+      if (rush) return;
+      if (running() && !(hovering && !panel)) {
+        left -= 50; clock += 50;
+        if (clock % 1000 < 50 || (flash && clock >= flash.until)) render();
+      }
+    }
+  }
+
+  async function type(el, text) {
+    if (fast || rush || reduced) { el.textContent = text; return wait(reduced ? 500 : 0); }
+    for (let i = 1; i <= text.length; i++) { el.textContent = text.slice(0, i); el.parentNode.scrollTop = 1e6; await wait(38); }
+  }
+
+  // Waits for a click on the approval card, or picks `def` when the ring runs out.
+  function choice(ms, def) {
+    if (fast) return Promise.resolve(def);
+    const my = tok;
+    return new Promise((res, rej) => {
+      let left = ms;
+      const iv = setInterval(() => {
+        if (my !== tok) { clearInterval(iv); rej(STOP); return; }
+        if (running() && !hovering) left -= 50;
+        ring.style.strokeDashoffset = 37.7 * (1 - Math.max(0, left) / ms);
+        if (left <= 0) choose(def);
+      }, 50);
+      choose = v => { clearInterval(iv); choose = null; res(v); };
+    });
+  }
+
+  function line(w, html, cls = '') {
+    const p = document.createElement('p');
+    p.className = cls;
+    p.innerHTML = html;
+    const { out, st } = W[w];
+    out.insertBefore(p, st);
+    while (out.children.length > 40) out.firstChild.remove();
+    out.scrollTop = out.scrollHeight;
+    return p;
+  }
+  const status = (w, text = '') => { W[w].st.textContent = text; W[w].out.scrollTop = 1e6; };
+
+  function focus(w) {
+    for (const k in W) W[k].el.classList.toggle('focus', k === w);
+    W[w].el.style.zIndex = ++z;
+    $('appname').textContent = w === 'desk' ? 'Claude' : 'Ghostty';
+  }
+  function jump(w) {
+    focus(w);
+    const el = W[w].el;
+    el.classList.remove('jump'); void el.offsetWidth; el.classList.add('jump');
+  }
+  async function ask(w, text) {
+    focus(w);
+    await type(line(w, '', w === 'desk' ? 'me' : 'u'), text);
+    await wait(300);
+  }
+
+  function set(id, patch) {
+    let s = S.find(x => x.id === id);
+    if (!s) S.push(s = { id, ...AGENTS[id], since: clock });
+    if (patch.state && patch.state !== s.state) s.since = clock;
+    Object.assign(s, patch);
+    render();
+  }
+  function done(id) { flash = { id, until: clock + 2600 }; render(); }
+
+  function ago(s) {
+    const n = Math.floor((clock - s.since) / 1000);
+    const t = n < 60 ? n + 's' : Math.floor(n / 60) + 'm';
+    if (n < 1) return 'now';
+    return s.state === 'need' ? 'waiting ' + t : s.state === 'work' ? t : t + ' ago';
+  }
+
+  const row = s => `<div class="row${s.hl ? ' hl' : ''}${s.win ? '' : ' nojump'}" data-win="${s.win}">
+      <i class="orb ${s.state}"></i>
+      <div class="body">
+        <div class="top"><i class="app ${s.app}"></i><span class="t">${s.title}</span><span class="sp"></span>${s.bg ? '<span class="badge" style="--bc:var(--teal)">bg</span>' : ''}${s.mode ? `<span class="badge" style="--bc:${s.bc}">${s.mode}</span>` : ''}<span class="when${s.state === 'need' ? ' w' : ''}">${ago(s)}</span></div>
+        <div class="d"><span${s.state === 'need' ? ' class="q"' : ''}>${s.act}</span><span class="m">${s.meta}</span></div>
+      </div>
+    </div>`;
+
+  function render() {
+    if (flash && clock >= flash.until) flash = null;
+    const need = S.find(s => s.state === 'need');
+    const working = S.some(s => s.state === 'work');
+    notch.dataset.mood = need ? 'need' : flash ? 'turn' : working ? 'working' : S.length ? 'turn' : '';
+    dots.innerHTML = S.length <= 4
+      ? S.map(s => `<i class="orb ${s.state}"></i>`).join('')
+      : ['need', 'work', 'turn'].map(st => {
+          const n = S.filter(s => s.state === st).length;
+          return n ? `<span class="cnt"><i class="orb ${st}"></i>${n}</span>` : '';
+        }).join('');
+    const e = need ? `<span class="who" style="color:var(--orange)">✋ ${need.id}</span>`
+      : flash ? `<span class="who" style="color:var(--green)">✓ ${flash.id}</span>`
+      : working ? '<span class="bars"><i></i><i></i><i></i></span>' : '';
+    if (e !== ear) count.innerHTML = ear = e;
+    if (list.classList.contains('on')) layout();
   }
 
   function layout() {
-    const showCard = cardOpen && !hovering;
-    const open = showCard || hovering;
-    notch.classList.toggle('open', open);
-    card.classList.toggle('on', showCard);
-    list.classList.toggle('on', hovering);
-    notch.style.height = !open ? '37px' : showCard ? '172px' : (36 + list.scrollHeight + 10) + 'px';
+    const listOn = !panel && (hovering || peek);
+    if (listOn) list.innerHTML = S.length ? S.map(row).join('') : '<p class="empty">No agents running yet</p>';
+    const el = panel ? P[panel] : listOn ? list : null;
+    for (const p of [list, ...Object.values(P)]) p.classList.toggle('on', p === el);
+    notch.classList.toggle('open', !!el);
+    notch.style.height = el ? 36 + el.scrollHeight + 14 + 'px' : '37px';
+  }
+  function show(p) { panel = p; rush = false; layout(); }
+  const renderWt = () => wtBox.classList.toggle('on', wt);
+
+  function reset() {
+    for (const k in W) { W[k].out.replaceChildren(W[k].st); status(k); W[k].el.classList.remove('focus'); }
+    line('cc', '~/dev/api on ⎇ fix-redirect', 'dim');
+    line('cx', '~/dev/billing on ⎇ stripe-v3', 'dim');
+    line('gm', '~/dev/parser on ⎇ main', 'dim');
+    S.length = 0; clock = 0; flash = null; peek = false; panel = null; rush = false; choose = null;
+    cardBox.classList.remove('telling');
+    fields.forEach(f => f.textContent = '');
+    wt = false; renderWt();
+    render(); layout();
   }
 
-  function next() {
-    render(scenes[i]);
-    timer = setTimeout(next, scenes[i].ms);
-    i = (i + 1) % scenes.length;
+  async function live() {
+    await ask('cc', 'fix the login redirect loop on /auth');
+    set('api', { state: 'work', act: 'Thinking…' }); status('cc', '✻ Thinking…');
+    await wait(900);
+    await ask('cx', 'migrate billing to stripe v3');
+    set('billing', { state: 'work', act: 'Exploring src/billing' }); status('cx', '• Working (esc to interrupt)');
+    await wait(400);
+    line('cc', '<i>⏺</i> <b>Read</b>(src/auth/redirect.ts)', 'tool'); line('cc', 'Read 84 lines', 'res');
+    set('api', { act: 'Read: redirect.ts' });
+    await wait(400);
+    await ask('gm', 'write tests for the tokenizer');
+    set('parser', { state: 'work', act: 'Reading tokenizer.ts' }); status('gm', '⠼ Reading the tokenizer…');
+    await wait(400);
+    line('cx', '• Explored src/billing, src/webhooks', 'tool');
+    await ask('desk', 'Draft the v2.4 release notes from the merged PRs');
+    set('notes', { state: 'work', act: 'Thinking…' }); status('desk', 'Thinking…');
+    await wait(700);
+    line('cc', '<i>⏺</i> <b>Grep</b>("next=", src/)', 'tool'); line('cc', 'Found 3 files', 'res');
+    set('api', { act: 'Grep: next=' });
+    await wait(400);
+    line('gm', '<i>✔</i> ReadFile src/tokenizer.ts', 'tool');
+    set('parser', { act: 'Write: tokenizer.test.ts' });
+    await wait(400);
+    status('desk'); line('desk', 'Read CHANGELOG.md · 14 PRs', 'chip');
+    set('notes', { act: 'Read: CHANGELOG.md' });
+    await wait(400);
+    line('cx', '• Edited src/billing/invoice.ts <span class="ok">+42</span> <span class="w">-17</span>', 'tool');
+    set('billing', { act: 'Edit: invoice.ts' });
+    await wait(1600);
   }
 
-  function tick(now) {
-    if (cardOpen && ringStart) {
-      const left = Math.max(0, 1 - (now - ringStart) / 5200);
-      ring.style.strokeDashoffset = 37.7 * (1 - left);
+  async function risky() {
+    focus('cc'); status('cc');
+    line('cc', '<i>⏺</i> <b>Bash</b>(curl -fsSL https://get.example.dev/install.sh | bash)', 'tool');
+    const pending = line('cc', 'Waiting for approval in Notchkeeper…', 'res w');
+    set('api', { state: 'need', act: 'Bash: curl … | bash' });
+    await wait(600);
+    anyway.disabled = true;
+    setTimeout(() => anyway.disabled = false, 1500);
+    show('card');
+    const a = await choice(9000, 'tell');
+    if (a === 'tell') {
+      cardBox.classList.add('telling'); layout();
+      await type($('tellField'), 'use brew, not a downloaded script');
+      await wait(700);
     }
-    requestAnimationFrame(tick);
+    show(null);
+    pending.className = 'res' + (a === 'allow' ? ' ok' : '');
+    pending.textContent = {
+      allow: 'Allowed from Notchkeeper',
+      deny: 'Denied from Notchkeeper',
+      tell: 'Denied from Notchkeeper: “use brew, not a downloaded script”',
+      term: 'Handed to the terminal',
+    }[a];
+    set('api', { state: 'work', act: 'Thinking…' });
+    if (a === 'term') {
+      jump('cc');
+      line('cc', 'Do you want to proceed?  ❯ 1. Yes   2. No', 'dim');
+      await wait(1200);
+      line('cc', 'Allowed in the terminal', 'res ok');
+    } else if (a === 'allow') {
+      await wait(600);
+      line('cc', 'Installed devcert 1.4', 'res');
+    } else {
+      await wait(600);
+      line('cc', '<i>⏺</i> OK, I’ll install it with Homebrew instead.', 'tool say');
+      line('cc', '<i>⏺</i> <b>Bash</b>(brew install mkcert)', 'tool');
+      set('api', { act: 'Bash: brew install mkcert' });
+      await wait(800);
+      line('cc', 'mkcert 1.4.4 installed', 'res');
+    }
+    await wait(300);
+    cardBox.classList.remove('telling'); $('tellField').textContent = '';
+    status('cc', '✻ Thinking…');
+    line('cx', '• Ran pnpm test billing  <span class="ok">31 passed</span>', 'tool');
+    await wait(1400);
   }
+
+  async function reply() {
+    focus('gm'); status('gm');
+    line('gm', '<i>✔</i> WriteFile tests/tokenizer.test.ts', 'tool');
+    await wait(500);
+    line('gm', '<i>✦</i> All 48 tests pass.', 'tool');
+    set('parser', { state: 'turn', act: 'All 48 tests pass.' }); done('parser');
+    await wait(2600);
+    focus('cc'); status('cc');
+    line('cc', '<i>⏺</i> <b>Update</b>(src/auth/redirect.ts)', 'tool');
+    line('cc', 'Keep ?next= on the redirect  <span class="ok">+6</span> <span class="w">-2</span>', 'res');
+    await wait(700);
+    line('cc', '<i>⏺</i> Fixed: the redirect keeps ?next= now, and 12 tests pass. Want me to run the e2e suite and push?', 'tool say');
+    set('api', { state: 'need', act: 'Want me to run the e2e suite and push?' });
+    await wait(1000);
+    show('reply');
+    await wait(600);
+    await type($('replyField'), 'yes, run e2e, then push');
+    await wait(600);
+    show(null);
+    line('cc', 'yes, run e2e, then push', 'u');
+    set('api', { state: 'work', act: 'Bash: pnpm e2e' });
+    await wait(300);
+    line('cc', '<i>⏺</i> <b>Bash</b>(pnpm e2e)', 'tool'); status('cc', '✻ Running…');
+    $('replyField').textContent = '';
+    await wait(1400);
+  }
+
+  async function jumpTo() {
+    line('cx', '• Edited src/webhooks/stripe.ts <span class="ok">+88</span> <span class="w">-61</span>', 'tool');
+    line('desk', 'Here’s a draft: 14 changes, grouped into Features, Fixes and Docs.', 'ai');
+    await wait(500);
+    line('desk', 'Should I mention the pricing change, or keep it internal for now?', 'ai q');
+    set('notes', { state: 'need', act: 'Mention the pricing change?' });
+    await wait(1400);
+    peek = true; layout();
+    await wait(1400);
+    const notes = S.find(s => s.id === 'notes');
+    notes.hl = true; layout();
+    await wait(900);
+    notes.hl = false; peek = false; layout();
+    jump('desk');
+    await wait(900);
+    await ask('desk', 'Mention it, one line at the end.');
+    set('notes', { state: 'work', act: 'Edit: RELEASE.md' });
+    await wait(900);
+    line('desk', 'Edited RELEASE.md · +38', 'chip');
+    await wait(1400);
+  }
+
+  async function background() {
+    show('new');
+    await wait(500);
+    await type($('newField'), 'Add dark mode to the settings page');
+    await wait(500);
+    wt = true; renderWt();
+    await wait(900);
+    show(null);
+    set('dark', wt
+      ? { state: 'work', act: 'Creating worktree nk/dark-mode…', meta: 'web ⎇ nk/dark-mode · own worktree' }
+      : { state: 'work', act: 'Starting…', meta: AGENTS.dark.meta });
+    await wait(400);
+    $('newField').textContent = ''; wt = false; renderWt();
+    await wait(1200);
+    set('dark', { act: 'Read: Settings.tsx' });
+    focus('cx'); status('cx');
+    line('cx', '• Ran pnpm test  <span class="ok">64 passed</span>', 'tool');
+    line('cx', 'Done. 14 files changed; billing now runs on Stripe v3.');
+    set('billing', { state: 'turn', act: 'Done. 14 files changed.' }); done('billing');
+    await wait(2800);
+    peek = true; layout();
+    await wait(4500);
+    peek = false; layout();
+    await wait(1200);
+  }
+
+  const CH = [
+    ['Live status', 'One dot per agent: violet while it works. Claude Code, Codex and Gemini CLI, side by side.', live],
+    ['Risky commands', 'Claude wants to pipe a downloaded script into bash. Notchkeeper flags it before you answer. Try it: allow, deny, or tell Claude what to do instead.', risky],
+    ['Reply from the notch', 'Finished agents turn green. When one asks you something, read the last turns and reply from the notch; it goes to the right terminal.', reply],
+    ['Jump to any agent', 'Click an agent to jump to its window: the exact terminal tab, or the Claude desktop app.', jumpTo],
+    ['Background worktrees', 'Start a background agent from the notch, in its own git worktree, so parallel agents never collide.', background],
+  ];
+  const chips = $('chapters');
+  chips.innerHTML = CH.map((c, i) => `<button data-ch="${i}">${c[0]}</button>`).join('');
+  function chapter(i) {
+    chips.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === i));
+    $('caption').textContent = CH[i][1];
+  }
+
+  // Starting mid-tour fast-forwards the earlier chapters instantly, so state always matches the story.
+  async function play(from) {
+    tok = {};
+    reset();
+    fast = from > 0;
+    try {
+      for (;;) {
+        for (let c = 0; c < CH.length; c++) {
+          if (c === from) fast = false;
+          chapter(c);
+          await CH[c][2]();
+        }
+        await wait(2500);
+        from = 0; reset();
+      }
+    } catch (e) { if (e !== STOP) throw e; }
+  }
+
+  chips.addEventListener('click', e => { const b = e.target.closest('[data-ch]'); if (b) play(+b.dataset.ch); });
+  P.card.querySelectorAll('[data-answer]').forEach(b => b.addEventListener('click', () => choose && choose(b.dataset.answer)));
+  document.querySelectorAll('[data-rush]').forEach(b => b.addEventListener('click', () => rush = true));
+  wtBox.addEventListener('click', () => { wt = !wt; renderWt(); });
+  list.addEventListener('click', e => { const r = e.target.closest('.row'); if (r && r.dataset.win) jump(r.dataset.win); });
+  document.addEventListener('keydown', e => {
+    if (!e.altKey || panel !== 'card' || !choose || !onScreen) return;
+    if (e.code === 'KeyY' && !anyway.disabled) { e.preventDefault(); choose('allow'); }
+    if (e.code === 'KeyN') { e.preventDefault(); choose('deny'); }
+  });
 
   notch.addEventListener('mouseenter', () => { hovering = true; hint.style.opacity = 0; layout(); });
   notch.addEventListener('mouseleave', () => { hovering = false; layout(); });
   // Touch screens have no mouseleave: tap the notch to open, anywhere else to close.
-  notch.addEventListener('click', () => { if (!hovering && !cardOpen) { hovering = true; layout(); } });
+  notch.addEventListener('click', () => { if (!hovering && !panel) { hovering = true; hint.style.opacity = 0; layout(); } });
   document.addEventListener('click', e => { if (hovering && !notch.contains(e.target)) { hovering = false; layout(); } });
-  card.querySelectorAll('[data-answer]').forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation();
-    clearTimeout(timer);
-    i = 0;
-    next();
-  }));
 
-  next();
-  requestAnimationFrame(tick);
+  new IntersectionObserver(([e]) => onScreen = e.isIntersecting).observe(stage);
+  const fit = () => stage.style.setProperty('--s', innerWidth <= 640 ? 1 : Math.min(1, stage.clientWidth / 980));
+  addEventListener('resize', fit);
+  fit();
+  play(0);
 
   document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Copied'; }

@@ -40,6 +40,13 @@ enum Jump {
         appId(session).map(activate)
     }
 
+    // Focuses the Ghostty or Terminal tab on this tty; false if neither has it.
+    static func focus(tty: String) -> Bool {
+        let running = { !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty }
+        if running("com.mitchellh.ghostty"), script(ghostty(tty, "focus t\nactivate\nreturn true")) { return true }
+        return running("com.apple.Terminal") && script(terminal(tty, "set selected of t to true\nset index of w to 1\nactivate\nreturn true"))
+    }
+
     // Types the text into the session's pane, then presses Enter.
     // Returns false without typing when the agent isn't what's running there.
     static func reply(_ session: Session, _ text: String) -> Bool {
@@ -161,10 +168,12 @@ enum Jump {
         """
     }
 
-    private static func script(_ source: String) {
+    @discardableResult
+    private static func script(_ source: String) -> Bool {
         var error: NSDictionary?
-        NSAppleScript(source: source)?.executeAndReturnError(&error)
+        let result = NSAppleScript(source: source)?.executeAndReturnError(&error)
         if let error { NSLog("Notchkeeper terminal script failed: \(error)") }
+        return error == nil && result?.booleanValue == true
     }
 
     private static func activate(_ bundleId: String) {

@@ -58,6 +58,11 @@ final class SettingsModel: ObservableObject {
         set { NotchPanel.followsActiveDisplay = newValue; onPlacementChange?(); refresh() }
     }
 
+    var attachInNewTab: Bool {
+        get { ClaudeCLI.attachInNewTab }
+        set { ClaudeCLI.attachInNewTab = newValue; refresh() }
+    }
+
     func plugin(_ id: String) -> Binding<Bool> {
         Binding(get: { Plugins.enabled.contains(id) }, set: { on in
             if on { Plugins.enabled.insert(id) } else { Plugins.enabled.remove(id) }
@@ -94,6 +99,10 @@ struct SettingsView: View {
                 Toggle(isOn: Binding(get: { model.followsActiveDisplay }, set: { model.followsActiveDisplay = $0 })) {
                     Text("Show on active display")
                     Text("Follows the screen you're working on, instead of staying on the built-in one.")
+                }
+                Toggle(isOn: Binding(get: { model.attachInNewTab }, set: { model.attachInNewTab = $0 })) {
+                    Text("Open background agents in a new tab")
+                    Text("In Ghostty's front window when it's open. Off opens a new window each time.")
                 }
                 Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.launchAtLogin = $0 }))
             }
