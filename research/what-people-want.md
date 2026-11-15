@@ -22,6 +22,11 @@ What we built from this, in priority order:
 6. **Jump and reply in more terminals** (iTerm2, Terminal.app), since most people aren't on Ghostty.
 7. **Plan card**, read-only. Claude ignores a hook's approval for plans, so Ping shows the plan and takes you to approve it, rather than offering a button that wouldn't work.
 
+### Second round (same day): working *better* with agents
+Signals: prompt queueing is one of the most-requested missing features (a Claude Code issue for queue mode has 39 comments); parallel agents in git worktrees is the most-recommended workflow; people steer agents constantly; usage limits are a top worry.
+
+Built: start a background agent from the notch (`claude --bg`, optional worktree), background agents tagged and attachable, a per-agent follow-up queue, and "Tell Claude" (deny with a message). Usage limits skipped: only the statusline input or the account token exposes them.
+
 Skipped on purpose: usage and cost dashboards, worktree management, kanban views. They pull Ping toward being an orchestrator.
 
 ## Sources

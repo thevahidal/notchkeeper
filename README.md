@@ -22,6 +22,9 @@ Your Claude Code agents, one glance away. Notchkeeper lives in your MacBook's no
 - **See the change.** Edit and Write cards show the lines removed and added, not just the file name.
 - **Approval log.** Every answer you give from the notch, with its risk, goes to `~/.notchkeeper/approvals.log` (menu bar → Approval Log…). Local only.
 - **While you were away.** Step away for five minutes or more and, when you're back, the notch opens once with what each agent did: who finished, who's waiting on you, and which files they edited.
+- **Start agents from the notch.** Click **+** (or menu bar → New Background Agent…), pick a folder, type what it should do. Notchkeeper runs `claude --bg`, optionally in its **own git worktree** so parallel agents don't collide. The agent shows up like any other, tagged **bg**; click it to attach in a terminal.
+- **Queue a follow-up.** While an agent works, type your next message into its row. Notchkeeper sends it when the turn ends, unless the turn ends with a question for you.
+- **Tell Claude instead of just saying no.** On an approval card, **Tell Claude…** denies the call with your message ("use pnpm, not npm"), so the agent changes course instead of guessing.
 - **Plans.** When Claude finishes a plan, Notchkeeper shows it, formatted, and takes you to the session to approve it.
 - **Questions.** When a turn ends with a question, the row turns orange and shows the question.
 - **Sounds.** A ping when an agent needs you, a soft pop when one finishes, and a reminder every few minutes if you've stepped away while one is stuck. Silent for the tab you're already looking at.
@@ -118,6 +121,7 @@ Notchkeeper sits in the path of your agent's permission prompts, so it's built t
 - Hooks run from a private copy in `~/.notchkeeper/hooks` (`700`), not from inside the app or a git checkout. Notchkeeper refreshes that copy when it starts, so an update to the app updates the scripts.
 
 **Input handling**
+- Starting an agent runs the `claude` executable directly with your prompt as an argument, never through a shell, so nothing in the prompt can run as a command.
 - Event fields are treated as untrusted. The terminal id must look like `ttys012` before it reaches an AppleScript. Notchkeeper reads the git branch straight from `.git/HEAD`; it never runs git. The transcript path must be a `.jsonl` file under `~/.claude/projects/`. Messages over 1 MB are dropped.
 - A reply is typed into a terminal only if `claude` is the program currently running there. If Claude has exited, the tab is a plain shell and pressing Enter would run your text as a command, so Notchkeeper jumps to the tab instead.
 
