@@ -71,7 +71,15 @@ Turn it on in the menu bar under Plugins. When one of its events happens, Notchk
   "tool": "Bash", "target": "npm test", "risk": "medium" }
 ```
 
-`tool`, `target` and `risk` come only with `approval`.
+`tool`, `target` and `risk` come only with `approval`. The `prompt` event fires when you send an agent a prompt and carries it as `"prompt": "…"` (up to 4,000 characters).
+
+A plugin may answer by printing one JSON object (up to 4 KB) on stdout; anything else is ignored:
+
+```json
+{ "title": "Fix login redirect", "detail": "Tests pass; waiting on your review" }
+```
+
+Both keys are optional and apply only to the session the event was about. `title` (first line, 80 characters) renames it, unless you named it yourself in Claude. `detail` (first line, 200 characters) replaces its status line until the agent's next event.
 
 A plugin can declare settings. Each needs a `key` and a `type` (`text`, `toggle` or `choice` with `options`); `title` and `default` are optional, and a plugin should work on its defaults alone:
 

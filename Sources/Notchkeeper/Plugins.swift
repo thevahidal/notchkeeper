@@ -50,7 +50,7 @@ struct PluginSetting {
 
 enum Plugins {
     static let folder = HookInstaller.home + "/.notchkeeper/plugins"
-    static let events = ["needs-you", "done", "approval"]
+    static let events = ["needs-you", "done", "approval", "prompt"]
     // Kept outside the plugin folders, so replacing a plugin keeps your settings.
     static let settingsFolder = HookInstaller.home + "/.notchkeeper/plugin-settings"
 
@@ -110,7 +110,7 @@ enum Plugins {
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
     }
 
-    static func emit(_ event: String, _ session: Session, extra: [String: Any] = [:]) {
+    static func emit(_ event: String, _ session: Session, extra: [String: Any] = [:], reply: @escaping ([String: Any]) -> Void) {
         let targets = all.filter { enabled.contains($0.id) && $0.events.contains(event) }
         guard !targets.isEmpty else { return }
         var payload: [String: Any] = [
@@ -123,24 +123,32 @@ enum Plugins {
         payload.merge(extra) { $1 }
         for plugin in targets {
             payload["settings"] = values(plugin)
-            if let data = try? JSONSerialization.data(withJSONObject: payload) { run(plugin, data) }
+            if let data = try? JSONSerialization.data(withJSONObject: payload) { run(plugin, data, reply) }
         }
     }
 
     // Each run gets 10 seconds; a hung plugin can't pile up.
-    private static func run(_ plugin: Plugin, _ input: Data) {
+    private static func run(_ plugin: Plugin, _ input: Data, _ reply: @escaping ([String: Any]) -> Void) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: plugin.executable)
         process.currentDirectoryURL = URL(fileURLWithPath: (plugin.executable as NSString).deletingLastPathComponent)
         process.environment = ["HOME": HookInstaller.home, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin"]
         let stdin = Pipe()
+        let stdout = Pipe()
         process.standardInput = stdin
-        process.standardOutput = FileHandle.nullDevice
+        process.standardOutput = stdout
         process.standardError = FileHandle.nullDevice
         guard (try? process.run()) != nil else { return NSLog("Notchkeeper: plugin \(plugin.id) didn't start") }
         stdin.fileHandleForWriting.write(input)
         try? stdin.fileHandleForWriting.close()
         DispatchQueue.global().asyncAfter(deadline: .now() + 10) { if process.isRunning { process.terminate() } }
+        // A reply is one JSON object on stdout, up to 4 KB; anything else is ignored.
+        DispatchQueue.global().async {
+            let data = stdout.fileHandleForReading.readData(ofLength: 4097)
+            try? stdout.fileHandleForReading.close()
+            guard data.count <= 4096, let answer = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            DispatchQueue.main.async { reply(answer) }
+        }
     }
 
     // SHA-256 of plugin.json + run.sh for each example as "Add Example Plugins" used to copy it.

@@ -12,6 +12,9 @@ struct Session: Identifiable, Codable {
     let id: String
     var repo: String
     var title = ""
+    // Claude's own title (from its sidebar) wins over a plugin's, which wins over the first prompt.
+    var ownTitle: String?
+    var pluginTitle: String?
     var cwd = ""
     // Claude's transcript, checked to be under ~/.claude/projects.
     var transcript: String?
@@ -404,8 +407,8 @@ final class SessionStore: ObservableObject {
             )
             approvals.append(approval)
             if let session = sessions.first(where: { $0.id == id }) {
-                Plugins.emit("approval", session, extra: ["tool": approval.tool, "target": approval.target,
-                                                          "risk": ["low", "medium", "high"][risk.level.rawValue]])
+                emit("approval", session, extra: ["tool": approval.tool, "target": approval.target,
+                                                  "risk": ["low", "medium", "high"][risk.level.rawValue]])
             }
             // The hook gives up after 30s, so drop the card just before that.
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.approvalTimeout) { [weak self] in
@@ -490,6 +493,9 @@ final class SessionStore: ObservableObject {
             if let model = event["model"] as? String { sessions[i].model = model }
         }
         if let effort = (event["effort"] as? [String: Any])?["level"] as? String { sessions[i].effort = effort }
+        if name == "UserPromptSubmit", let prompt = event["prompt"] as? String {
+            emit("prompt", sessions[i], extra: ["prompt": String(prompt.prefix(4000))])
+        }
         if entered { ActivityLog.record(state.rawValue, sessions[i]) }
         // A new event is unseen, unless it finished in the tab you're already looking at.
         sessions[i].seen = false
@@ -504,7 +510,22 @@ final class SessionStore: ObservableObject {
     // An agent just started waiting on you or finished: sound, and tell any plugins that asked.
     private func alert(_ i: Int) {
         chime(sessions[i].state)
-        Plugins.emit(sessions[i].state == .needsYou ? "needs-you" : "done", sessions[i])
+        emit(sessions[i].state == .needsYou ? "needs-you" : "done", sessions[i])
+    }
+
+    private func emit(_ event: String, _ session: Session, extra: [String: Any] = [:]) {
+        let id = session.id
+        Plugins.emit(event, session, extra: extra) { [weak self] reply in self?.applyPluginReply(id, reply) }
+    }
+
+    // A plugin's reply only touches the session that triggered it.
+    private func applyPluginReply(_ id: String, _ reply: [String: Any]) {
+        guard let i = sessions.firstIndex(where: { $0.id == id }) else { return }
+        if let title = firstLine(reply["title"] as? String) {
+            sessions[i].pluginTitle = String(title.prefix(80))
+            if sessions[i].ownTitle == nil { sessions[i].title = String(title.prefix(80)) }
+        }
+        if let detail = firstLine(reply["detail"] as? String) { sessions[i].detail = String(detail.prefix(200)) }
     }
 
     func chime(_ state: SessionState) {
@@ -778,10 +799,11 @@ final class SessionStore: ObservableObject {
     private func loadTitle(_ id: String, transcript path: String?, turnEnded: Bool) {
         guard let path = Self.claudeTranscript(path) else { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let (title, question, model) = Self.readTranscript(path)
+            let (title, firstPrompt, question, model) = Self.readTranscript(path)
             DispatchQueue.main.async {
                 guard let self, let i = self.sessions.firstIndex(where: { $0.id == id }) else { return }
-                if let title { self.sessions[i].title = title }
+                self.sessions[i].ownTitle = title
+                if let title = title ?? self.sessions[i].pluginTitle ?? firstPrompt { self.sessions[i].title = title }
                 if let model { self.sessions[i].model = model }
                 // A question box at the end of the turn means it's waiting on your answer.
                 if self.sessions[i].state == .yourTurn, let question {
@@ -796,10 +818,10 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    // Title: the sidebar title (latest "customTitle" entry), else the first prompt.
-    // Question: the last question box since the latest prompt. Model: the one that wrote the last reply.
-    private static func readTranscript(_ path: String) -> (title: String?, question: String?, model: String?) {
-        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return (nil, nil, nil) }
+    // Title: the sidebar title (latest "customTitle" entry). Question: the last question box since the latest prompt.
+    // Model: the one that wrote the last reply.
+    private static func readTranscript(_ path: String) -> (title: String?, firstPrompt: String?, question: String?, model: String?) {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return (nil, nil, nil, nil) }
         var title: String?
         var firstPrompt: String?
         var question: String?
@@ -824,7 +846,7 @@ final class SessionStore: ObservableObject {
             }
             if isQuestion { question = questionText(content) ?? question }
         }
-        return (title ?? firstPrompt, question, model.map(modelName))
+        return (title, firstPrompt, question, model.map(modelName))
     }
 
     // "claude-opus-5-5" → "Opus 5.5"; drops date suffixes like "-20250929".
