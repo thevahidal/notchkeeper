@@ -22,7 +22,7 @@ Notchkeeper (formerly Ping).
 - **Risk flags** on approval cards (`Risk.swift`): red/amber with reasons; red disables "for session", softens Allow and waits 1.5s.
 - **Diff preview** for Edit / Write / MultiEdit.
 - **Approval log**: `~/.notchkeeper/approvals.log`, JSON lines, 600, rotated at 1 MB.
-- **While you were away**: after 5+ minutes idle, one card on return with who finished, who waits and files edited. Logic not exercised live yet (needs real idle time).
+- **While you were away**: after 10+ minutes idle (Settings: off / 5 / 10 / 15 / 30), only if someone finished or needs you, one card on return with who finished, who waits and files edited. Logic not exercised live yet (needs real idle time).
 - **Renamed to Notchkeeper** (v0.2.0): repo, release, tap cask (with `ping` → `notchkeeper` rename), site at thevahidal.github.io/notchkeeper; connecting swaps old Ping hooks.
 - **Background agents** (v0.3.0): + in the notch runs `claude --bg -n <name> [-w <name>] <prompt>`; background sessions (from `claude agents --json`) are tagged and open with `claude attach`: clicking again focuses the attached tab; otherwise a new tab in Ghostty's front window (Settings toggle for a new window), else Terminal. Tested: launch and detection with a real agent.
 - **Follow-up queue**: messages typed while an agent works go out when the turn ends without a question. Not exercised live end to end.
