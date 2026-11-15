@@ -1,0 +1,75 @@
+[
+  {
+    "id": "journal",
+    "name": "Journal",
+    "description": "Keeps a daily Markdown log of what your agents did, in ~/.notchkeeper/journal.",
+    "author": "Notchkeeper",
+    "license": "MIT",
+    "builtIn": true,
+    "sendsDataOffMac": false,
+    "events": [
+      "needs-you",
+      "done",
+      "approval"
+    ],
+    "settings": [],
+    "source": "https://github.com/thevahidal/notchkeeper/tree/main/plugins/journal",
+    "install": ""
+  },
+  {
+    "id": "ntfy",
+    "name": "Phone (ntfy)",
+    "description": "Pushes 'needs you' and 'done' to your phone through ntfy.sh. Sends only the agent's title. Needs a topic.",
+    "author": "Notchkeeper",
+    "license": "MIT",
+    "builtIn": true,
+    "sendsDataOffMac": true,
+    "events": [
+      "needs-you",
+      "done"
+    ],
+    "settings": [
+      {
+        "key": "topic",
+        "title": "Topic",
+        "type": "text"
+      },
+      {
+        "key": "server",
+        "title": "Server",
+        "type": "text"
+      }
+    ],
+    "source": "https://github.com/thevahidal/notchkeeper/tree/main/plugins/ntfy",
+    "install": ""
+  },
+  {
+    "id": "say",
+    "name": "Say it",
+    "description": "Says out loud which agent needs you or finished.",
+    "author": "Notchkeeper",
+    "license": "MIT",
+    "builtIn": true,
+    "sendsDataOffMac": false,
+    "events": [
+      "needs-you",
+      "done"
+    ],
+    "settings": [
+      {
+        "key": "voice",
+        "title": "Voice",
+        "type": "choice",
+        "options": [
+          "System",
+          "Samantha",
+          "Daniel",
+          "Karen",
+          "Moira"
+        ]
+      }
+    ],
+    "source": "https://github.com/thevahidal/notchkeeper/tree/main/plugins/say",
+    "install": ""
+  }
+]
