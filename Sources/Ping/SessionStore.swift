@@ -22,6 +22,8 @@ struct Session: Identifiable {
     var model: String?
     var effort: String?
     var subagents: [Subagent] = []
+    // File name → last time this agent (or its subagents) edited it.
+    var edited: [String: Date] = [:]
     var state: SessionState
     // When it entered the current state.
     var since = Date()
@@ -47,8 +49,24 @@ struct Approval: Identifiable {
     let target: String
     // Claude's own "don't ask again" rules for this request, narrowed to this session.
     let sessionRules: [[String: Any]]
+    let risk: Risk
+    // For edits: the lines removed ("-") and added ("+"), trimmed to a few.
+    let diff: [(sign: Character, text: String)]
     let expires: Date
     let reply: EventServer.Reply
+}
+
+// What changed while you were away: one line per agent that did something.
+struct CatchUp {
+    struct Item: Identifiable {
+        let id: String
+        let state: SessionState
+        let title: String
+        let detail: String
+        let files: [String]
+    }
+    let since: Date
+    let items: [Item]
 }
 
 struct PlanReview {
@@ -61,6 +79,8 @@ final class SessionStore: ObservableObject {
     @Published var sessions: [Session] = []
     @Published var approvals: [Approval] = []
     @Published var plan: PlanReview?
+    @Published var catchUp: CatchUp?
+    private var awaySince: Date?
     @Published var sounds = UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true {
         didSet { UserDefaults.standard.set(sounds, forKey: "sounds") }
     }
@@ -107,7 +127,10 @@ final class SessionStore: ObservableObject {
 
     func answer(_ approval: Approval, _ decision: String) {
         // Ignore clicks and hotkeys that land as the card pops up; you haven't read it yet.
-        guard decision == "terminal" || Date().timeIntervalSince(approval.shown) > 0.7 else { return }
+        // Risky calls get a longer pause, so a reflexive ⌥Y can't wave them through.
+        let pause = approval.risk.level == .high ? 1.5 : 0.7
+        guard decision == "terminal" || Date().timeIntervalSince(approval.shown) > pause else { return }
+        AuditLog.record(approval, decision)
         if decision == "session" {
             // One line of JSON built from Claude's own suggestions; the hook passes it back as is.
             guard let data = try? JSONSerialization.data(withJSONObject: approval.sessionRules) else { return }
@@ -153,14 +176,21 @@ final class SessionStore: ObservableObject {
             let text = (event["tool_input"] as? [String: Any])?["plan"] as? String ?? ""
             if !text.isEmpty { plan = PlanReview(sessionId: id, repo: repo, plan: text) }
         } else if let reply {
+            let input = event["tool_input"] as? [String: Any] ?? [:]
+            let risk = Risk(tool: Self.tool(event), input: input, cwd: event["cwd"] as? String ?? "")
             let approval = Approval(
                 sessionId: id, agentId: agentId, repo: repo, tool: Self.tool(event), target: Self.target(event) ?? "",
-                sessionRules: Self.sessionRules(event), expires: Date().addingTimeInterval(Self.approvalTimeout), reply: reply
+                // Never offer to stop asking about something that looks dangerous.
+                sessionRules: risk.level == .high ? [] : Self.sessionRules(event),
+                risk: risk, diff: Self.diff(input),
+                expires: Date().addingTimeInterval(Self.approvalTimeout), reply: reply
             )
             approvals.append(approval)
             // The hook gives up after 30s, so drop the card just before that.
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.approvalTimeout) { [weak self] in
-                self?.approvals.removeAll { $0.id == approval.id }
+                guard let self, self.approvals.contains(where: { $0.id == approval.id }) else { return }
+                AuditLog.record(approval, "timeout")
+                self.approvals.removeAll { $0.id == approval.id }
             }
         }
 
@@ -199,6 +229,7 @@ final class SessionStore: ObservableObject {
             sessions.append(Session(id: id, repo: repo, state: state, detail: "", lastSeen: Date()))
         }
         let i = sessions.firstIndex { $0.id == id }!
+        noteEdit(i, name, event)
         let entered = sessions[i].state != state || isNew
         if sessions[i].state != state { sessions[i].since = Date() }
         sessions[i].state = state
@@ -229,10 +260,44 @@ final class SessionStore: ObservableObject {
         NSSound(named: state == .needsYou ? "Ping" : "Pop")?.play()
     }
 
+    private func noteEdit(_ i: Int, _ name: String, _ event: [String: Any]) {
+        guard name == "PostToolUse", ["Edit", "Write", "MultiEdit", "NotebookEdit"].contains(Self.tool(event)),
+              let file = Self.target(event) else { return }
+        let hourAgo = Date().addingTimeInterval(-3600)
+        sessions[i].edited = sessions[i].edited.filter { $0.value > hourAgo }
+        sessions[i].edited[file] = Date()
+    }
+
+    static var idleSeconds: TimeInterval {
+        [CGEventType.keyDown, .mouseMoved, .leftMouseDown]
+            .map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }.min() ?? 0
+    }
+
+    // Away for five minutes or more, then back: brief you once on what happened meanwhile.
+    func checkPresence() {
+        let idle = Self.idleSeconds
+        if idle > 300 {
+            if awaySince == nil { awaySince = Date().addingTimeInterval(-idle) }
+            return
+        }
+        guard let since = awaySince, idle < 5 else { return }
+        awaySince = nil
+        let items = sorted.compactMap { s -> CatchUp.Item? in
+            let files = s.edited.filter { $0.value > since }.sorted { $0.value > $1.value }.map(\.key)
+            guard s.since > since || !files.isEmpty else { return nil }
+            return CatchUp.Item(id: s.id, state: s.state, title: s.title.isEmpty ? s.repo : s.title,
+                                detail: s.question ?? s.detail, files: files)
+        }
+        guard !items.isEmpty else { return }
+        catchUp = CatchUp(since: since, items: items)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
+            if self?.catchUp?.since == since { self?.catchUp = nil }
+        }
+    }
+
     // While something has needed you for a few minutes and you've stepped away, remind you once in a while.
     func remind() {
-        let idle = [CGEventType.keyDown, .mouseMoved].map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }
-        let away = idle.min() ?? 0 > 60
+        let away = Self.idleSeconds > 60
         let stuck = sessions.contains { $0.state == .needsYou && Date().timeIntervalSince($0.since) > 180 }
         if away && stuck && Date().timeIntervalSince(lastChime) > 180 { chime(.needsYou) }
     }
@@ -244,6 +309,7 @@ final class SessionStore: ObservableObject {
             let description = pendingAgents[id]?.isEmpty == false ? pendingAgents[id]!.removeFirst() : ""
             sessions[i].subagents.append(Subagent(id: agentId, type: event["agent_type"] as? String ?? "Agent", description: description))
         }
+        noteEdit(i, name, event)
         if name == "PreToolUse", let j = sessions[i].subagents.firstIndex(where: { $0.id == agentId }) {
             sessions[i].subagents[j].detail = describe(name, event) ?? ""
         }
@@ -372,6 +438,16 @@ final class SessionStore: ObservableObject {
         // Skip injected blocks like <system-reminder> or <command-name>.
         guard let text = texts.first(where: { !$0.hasPrefix("<") }) else { return nil }
         return text.split(separator: "\n").first.map { String($0.prefix(80)) }
+    }
+
+    private static func diff(_ input: [String: Any]) -> [(sign: Character, text: String)] {
+        let edit = (input["edits"] as? [[String: Any]])?.first ?? input
+        func lines(_ key: String) -> [String] {
+            (edit[key] as? String ?? input[key] as? String ?? "").split(separator: "\n").map(String.init)
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        }
+        let removed = lines("old_string"), added = lines("new_string") + lines("content")
+        return removed.prefix(3).map { ("-", $0) } + added.prefix(removed.isEmpty ? 5 : 3).map { ("+", $0) }
     }
 
     // Only "add an allow rule" suggestions, and only for this session: never saved to a settings file.

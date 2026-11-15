@@ -23,6 +23,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         add(menu, "Sounds", #selector(toggleSounds)).state = store.sounds ? .on : .off
         add(menu, "Quiet Mode", #selector(toggleQuiet)).state = store.quiet ? .on : .off
+        add(menu, "Approval Log…", #selector(openLog))
         add(menu, "Launch at Login", #selector(toggleLogin)).state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(.separator())
         add(menu, "Quit Ping", #selector(quit), key: "q")
@@ -58,6 +59,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func toggleSounds() { store.sounds.toggle() }
     @objc private func toggleQuiet() { store.quiet.toggle() }
+
+    // Opens as plain text; the file only exists after the first answer.
+    @objc private func openLog() {
+        if !FileManager.default.fileExists(atPath: AuditLog.path) {
+            FileManager.default.createFile(atPath: AuditLog.path, contents: nil, attributes: [.posixPermissions: 0o600])
+        }
+        NSWorkspace.shared.open([URL(fileURLWithPath: AuditLog.path)], withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
+                                configuration: NSWorkspace.OpenConfiguration())
+    }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

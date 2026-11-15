@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("Ping: could not start event server: \(error)")
         }
 
+        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.store.checkPresence() }
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             self?.store.pruneStale()
             self?.store.remind()

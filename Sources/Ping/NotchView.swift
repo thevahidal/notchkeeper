@@ -27,6 +27,8 @@ struct NotchView: View {
                 } else if let plan = store.plan {
                     PlanCard(store: store, plan: plan, title: title(plan.sessionId), notchHeight: state.notch.height)
                         .transition(fade)
+                } else if let catchUp = store.catchUp {
+                    CatchUpCard(store: store, catchUp: catchUp, notchHeight: state.notch.height).transition(fade)
                 } else if state.expanded {
                     expanded.transition(fade)
                 } else if state.showsEars(store) {
@@ -45,6 +47,7 @@ struct NotchView: View {
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: approval?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.replyTo?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.plan?.sessionId)
+        .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.catchUp?.since)
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: store.headline?.id)
     }
 
@@ -244,6 +247,7 @@ enum Palette {
     static let working = [Color(red: 0.50, green: 0.47, blue: 0.87), Color(red: 0.36, green: 0.79, blue: 0.65)]
     static let needsYou = [Color(red: 0.96, green: 0.62, blue: 0.15), Color(red: 0.96, green: 0.45, blue: 0.40)]
     static let yourTurn = [Color(red: 0.55, green: 0.80, blue: 0.36), Color(red: 0.36, green: 0.79, blue: 0.65)]
+    static let danger = Color(red: 0.98, green: 0.36, blue: 0.36)
 
     static func glow(_ mood: Mood) -> [Color] {
         switch mood {
@@ -412,7 +416,7 @@ struct ApprovalCard: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.black)
                     .frame(width: 24, height: 24)
-                    .background(Palette.needsYou[0], in: RoundedRectangle(cornerRadius: 7))
+                    .background(approval.risk.level == .high ? Palette.danger : Palette.needsYou[0], in: RoundedRectangle(cornerRadius: 7))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title ?? approval.repo)
                         .font(.system(size: 13, weight: .semibold))
@@ -424,17 +428,33 @@ struct ApprovalCard: View {
                         .lineLimit(1)
                 }
                 Spacer()
+                if approval.risk.level != .low { RiskBadge(level: approval.risk.level) }
                 Countdown(expires: approval.expires)
             }
-            Text(approval.target.isEmpty ? approval.tool : approval.target)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.92))
-                .lineLimit(2)
-                .truncationMode(.middle)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(approval.target.isEmpty ? approval.tool : approval.target)
+                    .foregroundStyle(.white.opacity(approval.diff.isEmpty ? 0.92 : 0.5))
+                    .lineLimit(approval.diff.isEmpty ? 2 : 1)
+                    .truncationMode(.middle)
+                ForEach(Array(approval.diff.enumerated()), id: \.offset) { _, line in
+                    Text("\(line.sign) \(line.text)")
+                        .foregroundStyle(line.sign == "-" ? Palette.danger.opacity(0.9) : Palette.yourTurn[0])
+                        .lineLimit(1)
+                        .frame(height: 13, alignment: .leading)
+                }
+            }
+            .font(.system(size: 12, design: .monospaced))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(approval.risk.level == .high ? Palette.danger.opacity(0.5) : .clear))
+            if approval.risk.level != .low {
+                Label(approval.risk.reasons.joined(separator: " · "), systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(approval.risk.level == .high ? Palette.danger : Palette.needsYou[0])
+                    .lineLimit(1)
+            }
             if !approval.sessionRules.isEmpty {
                 Text("For session: always allow " + rules)
                     .font(.system(size: 11))
@@ -443,7 +463,12 @@ struct ApprovalCard: View {
                     .truncationMode(.middle)
             }
             HStack(spacing: 6) {
-                CardButton(title: "Allow", hint: "⌥Y", fill: Palette.yourTurn[0], text: .black) { onAnswer("allow") }
+                // On a risky call, Allow stops being the inviting button.
+                if approval.risk.level == .high {
+                    CardButton(title: "Allow anyway", hint: "⌥Y", fill: Palette.danger.opacity(0.18), text: Palette.danger) { onAnswer("allow") }
+                } else {
+                    CardButton(title: "Allow", hint: "⌥Y", fill: Palette.yourTurn[0], text: .black) { onAnswer("allow") }
+                }
                 if !approval.sessionRules.isEmpty {
                     CardButton(title: "For session", fill: Palette.yourTurn[0].opacity(0.2), text: Palette.yourTurn[0]) {
                         onAnswer("session")
@@ -474,6 +499,21 @@ struct ApprovalCard: View {
         case "Read", "Glob", "Grep": "doc.text.magnifyingglass"
         default: "hand.raised.fill"
         }
+    }
+}
+
+// Only shown when something matched; no badge never means "safe".
+struct RiskBadge: View {
+    let level: Risk.Level
+
+    var body: some View {
+        let (label, color) = level == .high ? ("Risky", Palette.danger) : ("Check", Palette.needsYou[0])
+        Text(label)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 7)
+            .frame(height: 18)
+            .background(color.opacity(0.16), in: Capsule())
     }
 }
 
@@ -550,6 +590,81 @@ struct PlanCard: View {
             .padding(.bottom, 14)
         }
         .padding(.horizontal, 18)
+    }
+}
+
+// "While you were away": what each agent did, and who's waiting, the moment you're back.
+struct CatchUpCard: View {
+    @ObservedObject var store: SessionStore
+    let catchUp: CatchUp
+    let notchHeight: CGFloat
+
+    var body: some View {
+        let shown = catchUp.items.prefix(4)
+        VStack(alignment: .leading, spacing: 8) {
+            Color.clear.frame(height: notchHeight - 8)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("While you were away").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                Text(Elapsed.short(Date().timeIntervalSince(catchUp.since)))
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.4))
+                Spacer()
+                Text(summary).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.5))
+            }
+            ForEach(shown) { item in
+                HStack(alignment: .top, spacing: 10) {
+                    Orb(state: item.state).padding(.top, 5)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(item.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(verb(item.state))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(item.state == .working ? .white.opacity(0.5) : Palette.orb(item.state))
+                        }
+                        Text(files(item).map { "\($0) · " + item.detail } ?? item.detail)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.55))
+                            .lineLimit(1)
+                    }
+                }
+                .frame(height: 36, alignment: .top)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    store.catchUp = nil
+                    if let session = store.sessions.first(where: { $0.id == item.id }) { store.jump(to: session) }
+                }
+            }
+            HStack {
+                if catchUp.items.count > shown.count {
+                    Text("and \(catchUp.items.count - shown.count) more").font(.system(size: 11)).foregroundStyle(.white.opacity(0.4))
+                }
+                Spacer()
+                CardButton(title: "Got it", fill: .white.opacity(0.12), text: .white) { store.catchUp = nil }
+            }
+        }
+        .padding(.horizontal, 18)
+    }
+
+    private var summary: String {
+        let need = catchUp.items.filter { $0.state == .needsYou }.count
+        let done = catchUp.items.filter { $0.state == .yourTurn }.count
+        return [need > 0 ? "\(need) need you" : nil, done > 0 ? "\(done) done" : nil].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    private func verb(_ state: SessionState) -> String {
+        switch state {
+        case .needsYou: "needs you"
+        case .yourTurn: "finished"
+        case .working: "still working"
+        }
+    }
+
+    // "Edited Risk.swift, NotchView.swift +2"
+    private func files(_ item: CatchUp.Item) -> String? {
+        guard !item.files.isEmpty else { return nil }
+        let names = item.files.prefix(2).joined(separator: ", ")
+        return "Edited " + names + (item.files.count > 2 ? " +\(item.files.count - 2)" : "")
     }
 }
 

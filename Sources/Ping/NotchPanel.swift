@@ -29,9 +29,12 @@ final class NotchState: ObservableObject {
 
     // Height of the card on show, if any, below the notch.
     func cardHeight(_ store: SessionStore) -> CGFloat? {
-        if let approval = store.approvals.first { return approval.sessionRules.isEmpty ? 150 : 170 }
+        if let a = store.approvals.first {
+            return 150 + (a.sessionRules.isEmpty ? 0 : 20) + (a.risk.level == .low ? 0 : 20) + (a.diff.isEmpty ? 0 : CGFloat(a.diff.count) * 15 - 18)
+        }
         if store.offerConnect || store.replyTo != nil { return 150 }
-        return store.plan != nil ? planHeight : nil
+        if store.plan != nil { return planHeight }
+        return store.catchUp.map { 92 + CGFloat(min($0.items.count, 4)) * 44 }
     }
 
     func earWidth(_ store: SessionStore) -> CGFloat {
