@@ -146,6 +146,10 @@ final class SessionStore: ObservableObject {
     @Published var quiet = UserDefaults.standard.bool(forKey: "quiet") {
         didSet { UserDefaults.standard.set(quiet, forKey: "quiet") }
     }
+    // Minutes idle before the "While you were away" card; 0 turns it off.
+    @Published var awayMinutes = UserDefaults.standard.object(forKey: "awayMinutes") as? Int ?? 10 {
+        didSet { UserDefaults.standard.set(awayMinutes, forKey: "awayMinutes") }
+    }
     @Published var replyTo: Session? {
         didSet { if replyTo?.id != oldValue?.id { loadChat() } }
     }
@@ -446,10 +450,11 @@ final class SessionStore: ObservableObject {
             .map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }.min() ?? 0
     }
 
-    // Away for five minutes or more, then back: brief you once on what happened meanwhile.
+    // Away for a while, then back: brief you once, but only if someone finished or needs you.
     func checkPresence() {
+        guard awayMinutes > 0 else { awaySince = nil; return }
         let idle = Self.idleSeconds
-        if idle > 300 {
+        if idle > TimeInterval(awayMinutes * 60) {
             if awaySince == nil { awaySince = Date().addingTimeInterval(-idle) }
             return
         }
@@ -457,11 +462,11 @@ final class SessionStore: ObservableObject {
         awaySince = nil
         let items = sorted.compactMap { s -> CatchUp.Item? in
             let files = s.edited.filter { $0.value > since }.sorted { $0.value > $1.value }.map(\.key)
-            guard s.since > since || !files.isEmpty else { return nil }
+            guard s.snoozedUntil == nil, s.since > since || !files.isEmpty else { return nil }
             return CatchUp.Item(id: s.id, state: s.state, title: s.title.isEmpty ? s.repo : s.title,
                                 detail: s.question ?? s.detail, files: files)
         }
-        guard !items.isEmpty else { return }
+        guard items.contains(where: { $0.state != .working }) else { return }
         catchUp = CatchUp(since: since, items: items)
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
             if self?.catchUp?.since == since { self?.catchUp = nil }
@@ -525,6 +530,7 @@ final class SessionStore: ObservableObject {
               let saved = try? JSONDecoder().decode([Session].self, from: data) else { return }
         sessions = saved
         pruneStale()
+        guard awayMinutes > 0 else { return }
         let waiting = sorted.filter { $0.state != .working && !$0.seen && $0.snoozedUntil == nil }
         guard let oldest = waiting.map(\.since).min() else { return }
         catchUp = CatchUp(since: oldest, items: waiting.map {
