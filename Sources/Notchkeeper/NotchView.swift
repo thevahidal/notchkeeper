@@ -362,6 +362,9 @@ struct StateBadge: View {
                 .frame(width: 26, height: 26)
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1))
+                .overlay(alignment: .topTrailing) {
+                    if !session.isItem { EnvIcon(session: session).offset(x: 4, y: -4) }
+                }
             Orb(state: session.state, seen: session.seen, size: 8)
                 .padding(2)
                 .background(.black, in: Circle())
@@ -718,33 +721,56 @@ enum Markdown {
     }
 }
 
-// The desktop app's icon, or the terminal's for CLI sessions (a terminal symbol if unknown).
+// The agent: Claude's app icon, or a letter for Codex and Gemini.
 struct AppIcon: View {
     let session: Session
 
     var body: some View {
-        (Jump.appId(session).map(Self.icon) ?? Image(systemName: session.isItem ? "bolt.fill" : "terminal"))
-            .resizable()
-            .frame(width: 18, height: 18)
-            .foregroundStyle(.white.opacity(0.6))
+        Group {
+            if session.isItem {
+                Image(systemName: "bolt.fill").resizable().scaledToFit()
+            } else if let agent = session.agent.flatMap(Agent.init) {
+                Text(agent.title.prefix(1)).font(.system(size: 14, weight: .bold, design: .rounded))
+            } else {
+                (Self.icon("com.anthropic.claudefordesktop") ?? Image(systemName: "sparkle")).resizable().scaledToFit()
+            }
+        }
+        .frame(width: 18, height: 18)
+        .foregroundStyle(.white.opacity(0.6))
     }
 
     private static var cache: [String: Image] = [:]
 
     // Drawn into a plain 8-bit sRGB bitmap: the system's extended-range icons wash out the whole view around them.
-    private static func icon(_ bundleId: String) -> Image {
+    static func icon(_ bundleId: String) -> Image? {
         if let cached = cache[bundleId] { return cached }
-        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else { return Image(systemName: "terminal") }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else { return nil }
         let ctx = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
                             space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        guard let ctx else { return Image(systemName: "terminal") }
+        guard let ctx else { return nil }
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
         NSWorkspace.shared.icon(forFile: url.path).draw(in: NSRect(x: 0, y: 0, width: 64, height: 64))
         NSGraphicsContext.current = nil
-        guard let cg = ctx.makeImage() else { return Image(systemName: "terminal") }
+        guard let cg = ctx.makeImage() else { return nil }
         let image = Image(decorative: cg, scale: 2)
         cache[bundleId] = image
         return image
+    }
+}
+
+// Where the agent runs: the terminal's icon for CLI sessions, a window for the desktop app.
+struct EnvIcon: View {
+    let session: Session
+
+    var body: some View {
+        let desktop = session.tty == nil
+        (desktop ? Image(systemName: "macwindow") : Jump.appId(session).flatMap(AppIcon.icon) ?? Image(systemName: "terminal"))
+            .resizable()
+            .scaledToFit()
+            .padding(desktop ? 2 : 0)
+            .frame(width: 13, height: 13)
+            .foregroundStyle(.white.opacity(0.8))
+            .background(.black, in: RoundedRectangle(cornerRadius: 3))
     }
 }
 
