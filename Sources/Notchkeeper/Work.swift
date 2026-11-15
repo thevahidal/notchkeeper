@@ -93,6 +93,21 @@ struct Work: Equatable {
         .sorted { ($0.saved ? 1 : 0, $0.path) < ($1.saved ? 1 : 0, $1.path) }
     }
 
+    // The main checkout a folder belongs to, read from .git without running git; nil outside a repo.
+    static func projectRoot(_ path: String) -> String? {
+        var dir = URL(fileURLWithPath: path)
+        while dir.path != "/" {
+            let git = dir.appendingPathComponent(".git")
+            if let link = try? String(contentsOf: git, encoding: .utf8), link.hasPrefix("gitdir: ") {
+                let target = link.dropFirst(8).trimmingCharacters(in: .whitespacesAndNewlines)
+                return target.range(of: "/.git/worktrees/").map { String(target[..<$0.lowerBound]) } ?? dir.path
+            }
+            if FileManager.default.fileExists(atPath: git.path) { return dir.path }
+            dir.deleteLastPathComponent()
+        }
+        return nil
+    }
+
     // `status --porcelain -z`: "XY path", and renames carry the old path as an extra field.
     static func changedFiles(_ status: String) -> [String] {
         var files: [String] = []
