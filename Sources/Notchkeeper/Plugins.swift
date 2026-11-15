@@ -9,11 +9,49 @@ struct Plugin: Identifiable {
     let description: String
     let executable: String
     let events: Set<String>
+    let settings: [PluginSetting]
+}
+
+// One entry of a plugin.json's "settings": text, toggle or choice, always with a usable default.
+struct PluginSetting {
+    let key: String
+    let title: String
+    let type: String
+    let options: [String]
+    let defaultValue: Any
+
+    init?(_ entry: [String: Any]) {
+        guard let key = entry["key"] as? String, !key.isEmpty, let type = entry["type"] as? String else { return nil }
+        let options = entry["options"] as? [String] ?? []
+        let fallback: Any?
+        switch type {
+        case "text": fallback = ""
+        case "toggle": fallback = false
+        case "choice": fallback = options.first
+        default: return nil
+        }
+        guard let value = Self.clean(entry["default"], type, options) ?? Self.clean(fallback, type, options) else { return nil }
+        (self.key, self.type, self.options, defaultValue) = (key, type, options, value)
+        title = entry["title"] as? String ?? key
+    }
+
+    func clean(_ value: Any?) -> Any? { Self.clean(value, type, options) }
+
+    private static func clean(_ value: Any?, _ type: String, _ options: [String]) -> Any? {
+        switch type {
+        case "text": return (value as? String).map { String($0.prefix(500)) }
+        case "toggle": return value as? Bool
+        case "choice": return (value as? String).flatMap { options.contains($0) ? $0 : nil }
+        default: return nil
+        }
+    }
 }
 
 enum Plugins {
     static let folder = HookInstaller.home + "/.notchkeeper/plugins"
     static let events = ["needs-you", "done", "approval"]
+    // Kept outside the plugin folders, so replacing a plugin keeps your settings.
+    static let settingsFolder = HookInstaller.home + "/.notchkeeper/plugin-settings"
 
     static var all: [Plugin] {
         let fm = FileManager.default
@@ -27,13 +65,39 @@ enum Plugins {
             let executable = (dir + "/" + run as NSString).standardizingPath
             guard executable.hasPrefix(dir + "/"), fm.isExecutableFile(atPath: executable) else { return nil }
             return Plugin(id: name, name: manifest["name"] as? String ?? name, description: manifest["description"] as? String ?? "",
-                          executable: executable, events: Set(manifest["on"] as? [String] ?? []))
+                          executable: executable, events: Set(manifest["on"] as? [String] ?? []),
+                          settings: (manifest["settings"] as? [[String: Any]] ?? []).compactMap(PluginSetting.init))
         }
     }
 
     static var enabled: Set<String> {
         get { Set(UserDefaults.standard.stringArray(forKey: "enabledPlugins") ?? []) }
         set { UserDefaults.standard.set(Array(newValue), forKey: "enabledPlugins") }
+    }
+
+    // The defaults, overridden by whatever you saved that the plugin still declares and is valid.
+    static func values(_ plugin: Plugin) -> [String: Any] {
+        let stored = storedValues(plugin)
+        var result: [String: Any] = [:]
+        for setting in plugin.settings { result[setting.key] = setting.clean(stored[setting.key]) ?? setting.defaultValue }
+        return result
+    }
+
+    static func save(_ plugin: Plugin, _ key: String, _ value: Any) {
+        guard let value = plugin.settings.first(where: { $0.key == key })?.clean(value) else { return }
+        var stored = storedValues(plugin)
+        stored[key] = value
+        guard let data = try? JSONSerialization.data(withJSONObject: stored, options: [.prettyPrinted, .sortedKeys]) else { return }
+        let fm = FileManager.default
+        try? fm.createDirectory(atPath: settingsFolder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        fm.createFile(atPath: settingsPath(plugin), contents: data, attributes: [.posixPermissions: 0o600])
+    }
+
+    private static func settingsPath(_ plugin: Plugin) -> String { settingsFolder + "/" + plugin.id + ".json" }
+
+    private static func storedValues(_ plugin: Plugin) -> [String: Any] {
+        FileManager.default.contents(atPath: settingsPath(plugin))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
     }
 
     static func emit(_ event: String, _ session: Session, extra: [String: Any] = [:]) {
@@ -47,8 +111,10 @@ enum Plugins {
             ],
         ]
         payload.merge(extra) { $1 }
-        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
-        for plugin in targets { run(plugin, data) }
+        for plugin in targets {
+            payload["settings"] = values(plugin)
+            if let data = try? JSONSerialization.data(withJSONObject: payload) { run(plugin, data) }
+        }
     }
 
     // Each run gets 10 seconds; a hung plugin can't pile up.

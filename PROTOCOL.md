@@ -71,7 +71,20 @@ Turn it on in the menu bar under Plugins. When one of its events happens, Notchk
   "tool": "Bash", "target": "npm test", "risk": "medium" }
 ```
 
-`tool`, `target` and `risk` come only with `approval`. Examples ship in the app: menu bar → Plugins → Add Example Plugins.
+`tool`, `target` and `risk` come only with `approval`.
+
+A plugin can declare settings. Each needs a `key` and a `type` (`text`, `toggle` or `choice` with `options`); `title` and `default` are optional, and a plugin should work on its defaults alone:
+
+```json
+"settings": [
+  { "key": "topic", "title": "Topic", "type": "text" },
+  { "key": "voice", "title": "Voice", "type": "choice", "options": ["Samantha", "Daniel"], "default": "Samantha" }
+]
+```
+
+Your values are kept in `~/.notchkeeper/plugin-settings/<folder>.json` (readable only by you, editable by hand). Every event carries them, defaults filled in, as `"settings": { "topic": "…", "voice": "Samantha" }`. Undeclared keys and invalid values are dropped, and text is capped at 500 characters.
+
+Examples ship in the app: menu bar → Plugins → Add Example Plugins.
 
 ## Porting
 
