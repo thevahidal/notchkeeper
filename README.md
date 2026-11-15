@@ -114,3 +114,7 @@ build.sh           builds .build/Ping.app
 research/          notes on agent dashboards and notch apps
 BACKLOG.md         what's done and what's next
 ```
+
+## License
+
+[MIT](LICENSE)
