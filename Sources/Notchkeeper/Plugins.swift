@@ -63,7 +63,7 @@ enum Plugins {
         return found.values.sorted { $0.id < $1.id }
     }
 
-    private static func load(_ root: String) -> [Plugin] {
+    static func load(_ root: String) -> [Plugin] {
         let fm = FileManager.default
         let names = (try? fm.contentsOfDirectory(atPath: root)) ?? []
         return names.compactMap { name in

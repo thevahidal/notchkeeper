@@ -129,6 +129,13 @@ Otherwise:
   - **Phone (ntfy)**: pushes "needs you" and "done" to your phone and watch through [ntfy](https://ntfy.sh). Turn it on and set a hard-to-guess topic under it in Settings. Only the agent's title leaves your Mac.
 
   A plugin can declare its own settings; they show up under it in Settings once it's on, and it works on its defaults if you never touch them.
+
+  More are on the [plugins page](https://thevahidal.github.io/notchkeeper/plugins.html). `nk` is a short name for `~/.notchkeeper/bin/notchkeeper`:
+  - `nk plugin install slack` installs a listed plugin at the exact version that was reviewed, and refuses it if the files don't match.
+  - `nk plugin install owner/repo[/folder][@ref]` installs straight from GitHub. Nobody has reviewed that code, and it says so before asking.
+  - `nk plugin list`, `nk plugin update [name]` and `nk plugin remove name` (moves it to the Trash).
+
+  Installs show what the plugin does and ask first, and new plugins start turned off.
 - **Build your own** on the socket protocol: see [PROTOCOL.md](PROTOCOL.md). It's also the starting point for a Linux client.
 
 ## How it works

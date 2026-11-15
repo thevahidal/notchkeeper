@@ -14,6 +14,7 @@
       "approval"
     ],
     "settings": [],
+    "sha256": "2d656d4765e5cf7ef90e55937e13c9e04dde34975e812d1d9841ebfeaac4cb8a",
     "source": "https://github.com/thevahidal/notchkeeper/tree/main/plugins/journal",
     "install": ""
   },
@@ -42,6 +43,7 @@
         "type": "text"
       }
     ],
+    "sha256": "287944534fb26f17373cc5285502159a22ea0c11418a9b2e89a8d3f3743b47fe",
     "source": "https://github.com/thevahidal/notchkeeper/tree/main/plugins/ntfy",
     "install": ""
   },
@@ -72,6 +74,7 @@
         ]
       }
     ],
+    "sha256": "12a743d80591b1e6cae02e470572d1a6eaa5e7f10b5ae2a734a51a4021944529",
     "source": "https://github.com/thevahidal/notchkeeper/tree/main/plugins/say",
     "install": ""
   }
