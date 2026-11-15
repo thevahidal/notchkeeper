@@ -46,6 +46,7 @@ struct NotchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: state.expanded)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: store.sessions.map(\.id))
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: state.filter)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: approval?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.replyTo?.id)
         .animation(.spring(response: 0.42, dampingFraction: 0.74), value: store.plan?.sessionId)
@@ -106,7 +107,7 @@ struct NotchView: View {
     }
 
     private var expanded: some View {
-        let sessions = store.sorted
+        let sessions = state.visible(store)
 
         return VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: state.notch.height + 2)
@@ -127,15 +128,25 @@ struct NotchView: View {
 
     private var header: some View {
         let counts: [(SessionState, String)] = [(.needsYou, "need you"), (.working, "working"), (.yourTurn, "done")]
-        return HStack(spacing: 12) {
+        return HStack(spacing: 4) {
             ForEach(counts, id: \.0) { s, label in
                 let n = store.sessions.filter { $0.state == s }.count
                 if n > 0 {
-                    HStack(spacing: 5) {
-                        Orb(state: s, size: 5)
-                        Text("\(n) \(s == .needsYou && n == 1 ? "needs you" : label)")
+                    let on = state.filter == s
+                    Button { state.filter = on ? nil : s } label: {
+                        HStack(spacing: 5) {
+                            Orb(state: s, size: 5)
+                            Text("\(n) \(s == .needsYou && n == 1 ? "needs you" : label)")
+                        }
+                        .foregroundStyle(s == .working ? .white.opacity(0.5) : Palette.orb(s))
+                        .padding(.horizontal, 7)
+                        .frame(height: 20)
+                        .background(.white.opacity(on ? 0.14 : 0), in: Capsule())
+                        .opacity(state.filter == nil || on ? 1 : 0.45)
+                        .contentShape(Capsule())
                     }
-                    .foregroundStyle(s == .working ? .white.opacity(0.5) : Palette.orb(s))
+                    .buttonStyle(.plain)
+                    .help(on ? "Show all agents" : "Show only these")
                 }
             }
             Spacer()

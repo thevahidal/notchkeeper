@@ -4,6 +4,8 @@ import SwiftUI
 final class NotchState: ObservableObject {
     @Published var expanded = false
     @Published var hovered: String?
+    // Header filter; cleared when the notch closes.
+    @Published var filter: SessionState?
     var notch = CGSize(width: 0, height: 24)
 
     // Up to this many sessions get one dot each; more show counts per state.
@@ -22,6 +24,12 @@ final class NotchState: ObservableObject {
 
     func height(of session: Session) -> CGFloat {
         rowHeight + CGFloat(session.subagents.count) * subagentHeight
+    }
+
+    // Falls back to all sessions once none match, so the list never goes empty.
+    func visible(_ store: SessionStore) -> [Session] {
+        let matching = store.sorted.filter { $0.state == filter }
+        return matching.isEmpty ? store.sorted : matching
     }
 
     func listHeight(_ sessions: [Session]) -> CGFloat {
@@ -53,7 +61,7 @@ final class NotchState: ObservableObject {
     func size(_ store: SessionStore) -> CGSize {
         if let card = cardHeight(store) { return CGSize(width: expandedWidth, height: notch.height + card) }
         if expanded {
-            return CGSize(width: expandedWidth, height: notch.height + headerHeight + 14 + listHeight(store.sorted))
+            return CGSize(width: expandedWidth, height: notch.height + headerHeight + 14 + listHeight(visible(store)))
         }
         guard showsEars(store) else { return CGSize(width: notch.width, height: notch.height) }
         return CGSize(width: notch.width + earWidth(store) * 2, height: notch.height + lip)
@@ -154,7 +162,10 @@ final class NotchPanel: NSPanel {
         }
         hadCard = card
         hotkeys.enabled = !store.approvals.isEmpty
-        if inside != state.expanded { state.expanded = inside }
+        if inside != state.expanded {
+            state.expanded = inside
+            if !inside { state.filter = nil }
+        }
     }
 }
 
