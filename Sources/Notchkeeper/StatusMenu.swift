@@ -89,7 +89,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func newAgent() { store.openNewAgent() }
-    // Plugins submenu: one checkable row per plugin found, plus the folder and the bundled examples.
+    // Plugins submenu: one checkable row per plugin found, plus the folder.
     private func pluginsItem() -> NSMenuItem {
         let item = NSMenuItem(title: "Plugins", action: nil, keyEquivalent: "")
         let sub = NSMenu()
@@ -102,7 +102,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             row.toolTip = plugin.description
         }
         sub.addItem(.separator())
-        add(sub, "Add Example Plugins", #selector(addExamples))
         add(sub, "Open Plugins Folder", #selector(openPlugins))
         item.submenu = sub
         return item
@@ -113,7 +112,6 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         if Plugins.enabled.contains(id) { Plugins.enabled.remove(id) } else { Plugins.enabled.insert(id) }
     }
 
-    @objc private func addExamples() { Plugins.installExamples(); openPlugins() }
     @objc private func openPlugins() { Plugins.openFolder() }
     @objc private func openSettings() { onSettings?() }
 

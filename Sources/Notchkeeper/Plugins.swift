@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 
 // Plugins: folders in ~/.notchkeeper/plugins, each with a plugin.json and a script.
 // Notchkeeper runs a plugin's script when one of its events happens, with the event as JSON on stdin.
@@ -53,11 +54,20 @@ enum Plugins {
     // Kept outside the plugin folders, so replacing a plugin keeps your settings.
     static let settingsFolder = HookInstaller.home + "/.notchkeeper/plugin-settings"
 
+    // Examples run from inside the app, so they update with it. A folder of yours with the same name wins.
+    static let bundled = (Bundle.main.resourcePath ?? "") + "/plugins"
+
     static var all: [Plugin] {
+        var found: [String: Plugin] = [:]
+        for plugin in load(bundled) + load(folder) { found[plugin.id] = plugin }
+        return found.values.sorted { $0.id < $1.id }
+    }
+
+    private static func load(_ root: String) -> [Plugin] {
         let fm = FileManager.default
-        let names = (try? fm.contentsOfDirectory(atPath: folder)) ?? []
-        return names.sorted().compactMap { name in
-            let dir = (folder + "/" + name as NSString).standardizingPath
+        let names = (try? fm.contentsOfDirectory(atPath: root)) ?? []
+        return names.compactMap { name in
+            let dir = (root + "/" + name as NSString).standardizingPath
             guard let data = fm.contents(atPath: dir + "/plugin.json"),
                   let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let run = manifest["run"] as? String else { return nil }
@@ -133,14 +143,30 @@ enum Plugins {
         DispatchQueue.global().asyncAfter(deadline: .now() + 10) { if process.isRunning { process.terminate() } }
     }
 
-    // Copies the bundled example plugins into the plugins folder, leaving any you already have alone.
-    static func installExamples() {
+    // SHA-256 of plugin.json + run.sh for each example as "Add Example Plugins" used to copy it.
+    private static let oldExamples = [
+        "journal": "8d3b34ae0b69ddfad8bfca1338ea3be8648d22636d9911140d698fa344af88b1",
+        "ntfy": "cf35498583dad5d156cca90f0cd24c3aed604171ef33d2e1f10c2a3189e22770",
+        "say": "12abecc2cb48c28c99b46e2e7b5ee26651b001fc9955a082f94a74e541981568",
+    ]
+
+    // Copies of old examples you never edited go to the Trash, so the bundled ones take over.
+    // A <key>.txt in the copy (ntfy's topic.txt) becomes that setting first.
+    static func retireOldExamples() {
         let fm = FileManager.default
-        try? fm.createDirectory(atPath: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        guard let examples = Bundle.main.resourcePath.map({ $0 + "/plugins" }),
-              let names = try? fm.contentsOfDirectory(atPath: examples) else { return }
-        for name in names where !fm.fileExists(atPath: folder + "/" + name) {
-            try? fm.copyItem(atPath: examples + "/" + name, toPath: folder + "/" + name)
+        for (name, hash) in oldExamples {
+            let dir = folder + "/" + name
+            guard let files = try? fm.contentsOfDirectory(atPath: dir),
+                  Set(files).subtracting(["topic.txt", "server.txt", ".DS_Store"]) == ["plugin.json", "run.sh"],
+                  let json = fm.contents(atPath: dir + "/plugin.json"), let run = fm.contents(atPath: dir + "/run.sh"),
+                  SHA256.hash(data: json + run).map({ String(format: "%02x", $0) }).joined() == hash,
+                  let plugin = load(bundled).first(where: { $0.id == name }) else { continue }
+            for setting in plugin.settings where storedValues(plugin)[setting.key] == nil {
+                let line = (try? String(contentsOfFile: dir + "/" + setting.key + ".txt"))?
+                    .components(separatedBy: .newlines).first?.trimmingCharacters(in: .whitespaces) ?? ""
+                if !line.isEmpty { save(plugin, setting.key, line) }
+            }
+            try? fm.trashItem(at: URL(fileURLWithPath: dir), resultingItemURL: nil)
         }
     }
 

@@ -84,7 +84,7 @@ A plugin can declare settings. Each needs a `key` and a `type` (`text`, `toggle`
 
 Your values are kept in `~/.notchkeeper/plugin-settings/<folder>.json` (readable only by you, editable by hand). Every event carries them, defaults filled in, as `"settings": { "topic": "…", "voice": "Samantha" }`. Undeclared keys and invalid values are dropped, and text is capped at 500 characters.
 
-Examples ship in the app: menu bar → Plugins → Add Example Plugins.
+The examples run from the app's `Contents/Resources/plugins` and update with it. To change one, copy its folder into `~/.notchkeeper/plugins` under the same name: your copy wins.
 
 ## Porting
 

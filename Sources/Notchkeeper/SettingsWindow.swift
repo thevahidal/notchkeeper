@@ -127,10 +127,7 @@ struct SettingsView: View {
                         ForEach(plugin.settings, id: \.key) { settingRow(plugin, $0).padding(.leading, 16) }
                     }
                 }
-                HStack {
-                    Button("Add Example Plugins") { Plugins.installExamples(); model.refresh() }
-                    Button("Open Plugins Folder") { Plugins.openFolder() }
-                }
+                Button("Open Plugins Folder") { Plugins.openFolder() }
             } header: {
                 Text("Plugins")
             } footer: {

@@ -3,12 +3,9 @@
 # and set that topic in Settings → Plugins. Only the agent's title and its state leave your Mac.
 input=$(cat)
 get() { printf %s "$input" | plutil -extract "$1" raw -o - - 2>/dev/null; }
-# topic.txt and server.txt are from before plugins had settings; still honored.
-topic=$(get settings.topic)
-[ -n "$topic" ] || topic=$(cat topic.txt 2>/dev/null)
-topic=$(printf %s "$topic" | tr -cd 'A-Za-z0-9_-')
+topic=$(get settings.topic | tr -cd 'A-Za-z0-9_-')
 [ -n "$topic" ] || exit 0
-server=$(head -1 server.txt 2>/dev/null || get settings.server)
+server=$(get settings.server)
 [ -n "$server" ] || server=https://ntfy.sh
 title=$(get session.title | head -c 120)
 case "$(get event)" in

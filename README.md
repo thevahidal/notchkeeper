@@ -108,7 +108,7 @@ Otherwise:
 ## Extend it
 
 - **Anything in the notch.** `~/.notchkeeper/bin/notchkeeper run -- npm run build` shows the build while it runs and pings when it's done or fails. `notchkeeper notify --id … --title … --state done --url …` posts anything else: deploys, CI, long scripts.
-- **Plugins.** Small scripts that run when an agent needs you, finishes or asks for approval. Menu bar → Plugins → **Add Example Plugins** gives you three, all off until you turn them on:
+- **Plugins.** Small scripts that run when an agent needs you, finishes or asks for approval. Three come with the app, all off until you turn them on in Settings or the menu bar:
   - **Say it**: speaks "api needs you", in the voice you pick.
   - **Journal**: a daily Markdown log of what your agents did, in `~/.notchkeeper/journal/`.
   - **Phone (ntfy)**: pushes "needs you" and "done" to your phone and watch through [ntfy](https://ntfy.sh). Turn it on and set a hard-to-guess topic under it in Settings. Only the agent's title leaves your Mac.

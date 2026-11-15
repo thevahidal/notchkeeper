@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.onPlacementChange = { [weak self] in self?.panel?.place() }
 
         HookInstaller.refreshScripts()
+        Plugins.retireOldExamples()
         store.restore()
         // Written a second after the last change, not on every event.
         saver = store.$sessions.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] _ in self?.store.save() }
