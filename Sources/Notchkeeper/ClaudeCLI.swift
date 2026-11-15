@@ -63,7 +63,7 @@ enum ClaudeCLI {
     }
 
     @discardableResult
-    private static func run(_ executable: String, _ args: [String], in folder: String?) -> (Int32, String) {
+    static func run(_ executable: String, _ args: [String], in folder: String? = nil) -> (Int32, String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = args

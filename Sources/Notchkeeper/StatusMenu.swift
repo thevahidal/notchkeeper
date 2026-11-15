@@ -17,9 +17,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     // Rebuilt on every open, so it always reflects the current settings file.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let connected = HookInstaller.isConnected
-        menu.addItem(NSMenuItem(title: connected ? "Connected to Claude Code" : "Not connected to Claude Code", action: nil, keyEquivalent: ""))
-        add(menu, connected ? "Disconnect" : "Connect…", #selector(toggleConnect))
+        menu.addItem(NSMenuItem(title: "Agents", action: nil, keyEquivalent: ""))
+        // A check means Notchkeeper's hooks are in that agent's settings; click to connect or disconnect.
+        for agent in Agent.allCases where agent == .claude || agent.isInstalled {
+            let item = add(menu, agent.title, #selector(toggleConnect(_:)))
+            item.representedObject = agent.rawValue
+            item.state = HookInstaller.isConnected(agent) ? .on : .off
+            item.indentationLevel = 1
+        }
         menu.addItem(.separator())
         add(menu, "New Background Agent…", #selector(newAgent))
         menu.addItem(.separator())
@@ -38,13 +43,31 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         return item
     }
 
-    @objc private func toggleConnect() {
-        if HookInstaller.isConnected {
-            do { try HookInstaller.disconnect() } catch { NSLog("Notchkeeper: \(error.localizedDescription)") }
-        } else {
-            store.connectError = nil
-            store.offerConnect = true
+    @objc private func toggleConnect(_ sender: NSMenuItem) {
+        guard let agent = (sender.representedObject as? String).flatMap(Agent.init) else { return }
+        do {
+            if HookInstaller.isConnected(agent) {
+                try HookInstaller.disconnect(agent)
+            } else if agent == .claude {
+                // Claude's settings are asked about in the notch, with the details.
+                store.connectError = nil
+                store.offerConnect = true
+            } else {
+                try HookInstaller.connect(agent)
+                // Codex runs new hooks only after you approve them.
+                if agent == .codex { tell("Codex connected", "Open Codex and approve Notchkeeper's hooks with /hooks. Until then Codex won't run them.") }
+            }
+        } catch {
+            tell("Couldn't change \(agent.title)'s hooks", error.localizedDescription)
         }
+    }
+
+    private func tell(_ title: String, _ text: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     @objc private func toggleLogin() {

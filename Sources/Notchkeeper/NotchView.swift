@@ -166,7 +166,11 @@ struct NotchView: View {
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.working[1])
                     }
+                    if let agent = session.agent { Tag(text: agent, color: .white.opacity(0.6)) }
                     if session.background { Tag(text: "bg", color: Palette.plan) }
+                    if let until = session.snoozedUntil {
+                        Tag(text: "zz " + until.formatted(date: .omitted, time: .shortened), color: .white.opacity(0.5))
+                    }
                     if let n = store.queued[session.id]?.count { Tag(text: "\(n) queued", color: Palette.working[1]) }
                     Spacer(minLength: 8)
                     if let mode = session.mode { ModeBadge(mode: mode) }
@@ -193,6 +197,10 @@ struct NotchView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(height: state.subagentHeight - 4, alignment: .leading)
+            }
+            // On hover only, so rows stay calm.
+            if session.state != .working && hovered {
+                SnoozeMenu(store: store, session: session, hovered: hovered).padding(.top, 4)
             }
             if Jump.canReply(session) {
                 Button { store.replyTo = session } label: {
@@ -785,6 +793,36 @@ struct ConnectCard: View {
             .padding(.top, 2)
         }
         .padding(.horizontal, 18)
+    }
+}
+
+// "Remind me later" for an agent you can't deal with right now; it comes back with a ping.
+struct SnoozeMenu: View {
+    @ObservedObject var store: SessionStore
+    let session: Session
+    let hovered: Bool
+
+    var body: some View {
+        Menu {
+            Button("In 15 minutes") { store.snooze(session, until: Date().addingTimeInterval(15 * 60)) }
+            Button("In 1 hour") { store.snooze(session, until: Date().addingTimeInterval(3600)) }
+            Button("Tomorrow at 9") { store.snooze(session, until: Self.tomorrowMorning) }
+        } label: {
+            Image(systemName: "moon.zzz.fill")
+                .font(.system(size: 10))
+                .foregroundStyle(.white.opacity(hovered ? 0.9 : 0.5))
+                .frame(width: 26, height: 26)
+                .background(.white.opacity(hovered ? 0.16 : 0.08), in: Circle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Remind me later")
+    }
+
+    private static var tomorrowMorning: Date {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        return Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) ?? tomorrow
     }
 }
 

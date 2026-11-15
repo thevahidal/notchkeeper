@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum SessionState {
+enum SessionState: String, Codable {
     case working, needsYou, yourTurn
 }
 
@@ -8,7 +8,7 @@ enum Mood {
     case idle, working, needsYou, yourTurn
 }
 
-struct Session: Identifiable {
+struct Session: Identifiable, Codable {
     let id: String
     var repo: String
     var title = ""
@@ -18,6 +18,11 @@ struct Session: Identifiable {
     var background = false
     var tty: String?
     var term: String?
+    // Bundle id of the app the terminal runs in, from the hook's environment; a fallback for terminals Notchkeeper can't script.
+    var app: String?
+    // nil for Claude Code; "codex" or "gemini" otherwise.
+    var agent: String?
+    var pane: Pane?
     // The desktop app's question box from the latest turn.
     var question: String?
     var seen = false
@@ -28,13 +33,39 @@ struct Session: Identifiable {
     // File name → last time this agent (or its subagents) edited it.
     var edited: [String: Date] = [:]
     var state: SessionState
+    // "Remind me later": hidden from alerts until then.
+    var snoozedUntil: Date?
     // When it entered the current state.
     var since = Date()
     var detail: String
     var lastSeen: Date
 }
 
-struct Subagent: Identifiable {
+// A pane inside a multiplexer or a scriptable terminal, for exact jumps and replies.
+enum Pane: Equatable, Codable {
+    case tmux(socket: String, pane: String)
+    case wezterm(pane: String)
+    case kitty(socket: String, window: String)
+
+    // Each id goes into a command line, so only the expected shapes pass.
+    init?(_ event: [String: Any]) {
+        func field(_ key: String, _ pattern: String) -> String? {
+            (event[key] as? String).flatMap { $0.range(of: pattern, options: .regularExpression) != nil ? $0 : nil }
+        }
+        if let pane = field("tmux_pane", "^%[0-9]+$"), let socket = field("tmux_socket", "^/[A-Za-z0-9/._-]+$"), !socket.contains("..") {
+            self = .tmux(socket: socket, pane: pane)
+        } else if let pane = field("wezterm_pane", "^[0-9]+$") {
+            self = .wezterm(pane: pane)
+        } else if let window = field("kitty_window", "^[0-9]+$"), let socket = field("kitty_socket", "^unix:/[A-Za-z0-9/._-]+$"),
+                  !socket.contains("..") {
+            self = .kitty(socket: socket, window: window)
+        } else {
+            return nil
+        }
+    }
+}
+
+struct Subagent: Identifiable, Codable {
     let id: String
     let type: String
     let description: String
@@ -120,19 +151,20 @@ final class SessionStore: ObservableObject {
 
     // Most urgent first, seen ones last, then most recent.
     var sorted: [Session] {
-        func rank(_ s: Session) -> Int { s.seen ? 3 : s.state == .needsYou ? 0 : s.state == .yourTurn ? 1 : 2 }
+        func rank(_ s: Session) -> Int { s.snoozedUntil != nil ? 4 : s.seen ? 3 : s.state == .needsYou ? 0 : s.state == .yourTurn ? 1 : 2 }
         return sessions.sorted { (rank($0), $1.lastSeen) < (rank($1), $0.lastSeen) }
     }
 
     var mood: Mood {
-        if sessions.contains(where: { $0.state == .needsYou }) { return .needsYou }
-        if sessions.contains(where: { $0.state == .working }) { return .working }
-        return sessions.contains { $0.state == .yourTurn && !$0.seen } ? .yourTurn : .idle
+        let awake = sessions.filter { $0.snoozedUntil == nil }
+        if awake.contains(where: { $0.state == .needsYou }) { return .needsYou }
+        if awake.contains(where: { $0.state == .working }) { return .working }
+        return awake.contains { $0.state == .yourTurn && !$0.seen } ? .yourTurn : .idle
     }
 
     // The one session the collapsed notch names: the most urgent one still waiting on you.
     var headline: Session? {
-        sorted.first { !$0.seen && $0.state != .working }
+        sorted.first { !$0.seen && $0.state != .working && $0.snoozedUntil == nil }
     }
 
     // Typing into the notch: the panel needs the keyboard.
@@ -246,7 +278,9 @@ final class SessionStore: ObservableObject {
         sessions[i].detail = "Queued: " + next
     }
 
-    func apply(_ event: [String: Any], reply: EventServer.Reply? = nil) {
+    func apply(_ raw: [String: Any], reply: EventServer.Reply? = nil) {
+        let agent = (raw["agent"] as? String).flatMap(Agent.init).flatMap { $0 == .claude ? nil : $0 }
+        let event = agent == .gemini ? Self.fromGemini(raw) : raw
         guard let id = event["session_id"] as? String, let name = event["hook_event_name"] as? String else { return }
         let repo = ((event["cwd"] as? String ?? "") as NSString).lastPathComponent
         let agentId = event["agent_id"] as? String
@@ -325,7 +359,10 @@ final class SessionStore: ObservableObject {
         let i = sessions.firstIndex { $0.id == id }!
         noteEdit(i, name, event)
         let entered = sessions[i].state != state || isNew
-        if sessions[i].state != state { sessions[i].since = Date() }
+        if sessions[i].state != state {
+            sessions[i].since = Date()
+            sessions[i].snoozedUntil = nil
+        }
         sessions[i].state = state
         sessions[i].detail = detail ?? sessions[i].detail
         if state == .working { sessions[i].question = nil }
@@ -336,8 +373,16 @@ final class SessionStore: ObservableObject {
             // It ends up inside an AppleScript, so accept only the "ttys012" shape.
             sessions[i].tty = tty.range(of: "^ttys[0-9]+$", options: .regularExpression) != nil ? tty : nil
             sessions[i].term = event["term"] as? String
+            sessions[i].app = (event["app"] as? String).flatMap { $0.range(of: "^[A-Za-z0-9.-]+$", options: .regularExpression) != nil ? $0 : nil }
+            sessions[i].pane = Pane(event)
         }
         if let mode = event["permission_mode"] as? String { sessions[i].mode = mode }
+        // Claude's titles and model come from its transcript; the others tell us in the event.
+        if let agent {
+            sessions[i].agent = agent.rawValue
+            if sessions[i].title.isEmpty, let prompt = event["prompt"] as? String { sessions[i].title = String(firstLine(prompt)?.prefix(80) ?? "") }
+            if let model = event["model"] as? String { sessions[i].model = model }
+        }
         if let effort = (event["effort"] as? [String: Any])?["level"] as? String { sessions[i].effort = effort }
         // A new event is unseen, unless it finished in the tab you're already looking at.
         sessions[i].seen = false
@@ -391,10 +436,22 @@ final class SessionStore: ObservableObject {
     }
 
     // While something has needed you for a few minutes and you've stepped away, remind you once in a while.
+    // Something's been waiting on you: a ping every 10 minutes, every 3 if you've stepped away. Snoozes wake here too.
     func remind() {
-        let away = Self.idleSeconds > 60
-        let stuck = sessions.contains { $0.state == .needsYou && Date().timeIntervalSince($0.since) > 180 }
-        if away && stuck && Date().timeIntervalSince(lastChime) > 180 { chime(.needsYou) }
+        for i in sessions.indices {
+            guard let until = sessions[i].snoozedUntil, until <= Date() else { continue }
+            sessions[i].snoozedUntil = nil
+            sessions[i].seen = false
+            chime(sessions[i].state)
+        }
+        let waiting = sessions.filter { $0.state == .needsYou && $0.snoozedUntil == nil }.map { Date().timeIntervalSince($0.since) }.max() ?? 0
+        let gap: TimeInterval = Self.idleSeconds > 60 ? 180 : 600
+        if waiting > gap && Date().timeIntervalSince(lastChime) > gap { chime(.needsYou) }
+    }
+
+    func snooze(_ session: Session, until date: Date) {
+        guard let i = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+        sessions[i].snoozedUntil = date
     }
 
     private func applySubagent(_ id: String, _ agentId: String, _ name: String, _ event: [String: Any]) {
@@ -411,8 +468,38 @@ final class SessionStore: ObservableObject {
     }
 
     // Fallback for sessions that crashed or were closed without a SessionEnd event.
+    // Fallback for sessions that ended without a SessionEnd. Anything still waiting on you stays a day, so it isn't forgotten.
     func pruneStale() {
-        sessions.removeAll { $0.lastSeen < Date().addingTimeInterval(-30 * 60) }
+        sessions.removeAll { s in
+            let waiting = s.state == .needsYou || (s.state == .yourTurn && !s.seen) || s.snoozedUntil != nil
+            return s.lastSeen < Date().addingTimeInterval(waiting ? -24 * 3600 : -30 * 60)
+        }
+    }
+
+    // Sessions survive a restart (or an app update), so nothing waiting on you is lost. Private file, local only.
+    static let savedPath = HookInstaller.home + "/.notchkeeper/sessions.json"
+
+    func save() {
+        guard let data = try? JSONEncoder().encode(sessions) else { return }
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: Self.savedPath) { fm.createFile(atPath: Self.savedPath, contents: nil, attributes: [.posixPermissions: 0o600]) }
+        try? data.write(to: URL(fileURLWithPath: Self.savedPath))
+    }
+
+    // Brings back yesterday's sessions; the ones still waiting on you open as a catch-up card.
+    func restore() {
+        guard let data = FileManager.default.contents(atPath: Self.savedPath),
+              let saved = try? JSONDecoder().decode([Session].self, from: data) else { return }
+        sessions = saved
+        pruneStale()
+        let waiting = sorted.filter { $0.state != .working && !$0.seen && $0.snoozedUntil == nil }
+        guard let oldest = waiting.map(\.since).min() else { return }
+        catchUp = CatchUp(since: oldest, items: waiting.map {
+            CatchUp.Item(id: $0.id, state: $0.state, title: $0.title.isEmpty ? $0.repo : $0.title, detail: $0.question ?? $0.detail, files: [])
+        })
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+            if self?.catchUp?.since == oldest { self?.catchUp = nil }
+        }
     }
 
     private func describe(_ name: String, _ event: [String: Any]) -> String? {
@@ -544,6 +631,15 @@ final class SessionStore: ObservableObject {
         }
         let removed = lines("old_string"), added = lines("new_string") + lines("content")
         return removed.prefix(3).map { ("-", $0) } + added.prefix(removed.isEmpty ? 5 : 3).map { ("+", $0) }
+    }
+
+    // Gemini CLI's events, renamed to their Claude Code equivalents so the rest of the store treats them alike.
+    private static func fromGemini(_ event: [String: Any]) -> [String: Any] {
+        var event = event
+        let names = ["BeforeAgent": "UserPromptSubmit", "BeforeTool": "PreToolUse", "AfterTool": "PostToolUse", "AfterAgent": "Stop"]
+        if let name = event["hook_event_name"] as? String, let mapped = names[name] { event["hook_event_name"] = mapped }
+        if let response = event["prompt_response"] as? String { event["last_assistant_message"] = response }
+        return event
     }
 
     // Only "add an allow rule" suggestions, and only for this session: never saved to a settings file.

@@ -1,10 +1,12 @@
 import AppKit
+import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = SessionStore()
     var panel: NotchPanel?
     var server: EventServer?
     var menu: StatusMenu?
+    private var saver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panel = NotchPanel(store: store)
@@ -12,8 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu = StatusMenu(store: store)
 
         HookInstaller.refreshScripts()
+        store.restore()
+        // Written a second after the last change, not on every event.
+        saver = store.$sessions.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] _ in self?.store.save() }
         store.renamedFromPing = HookInstaller.hasLegacyHooks
-        store.offerConnect = !HookInstaller.isConnected && (store.renamedFromPing || !UserDefaults.standard.bool(forKey: "declinedConnect"))
+        store.offerConnect = !HookInstaller.isConnected() && (store.renamedFromPing || !UserDefaults.standard.bool(forKey: "declinedConnect"))
 
         // Private to you: whoever can reach the socket can answer approvals.
         let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".notchkeeper")
