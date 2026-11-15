@@ -500,12 +500,39 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    // Fallback for sessions that crashed or were closed without a SessionEnd event.
+    // Off the notch until its next event brings it back.
+    func dismiss(_ id: String) {
+        queued[id] = nil
+        sessions.removeAll { $0.id == id }
+    }
+
+    func clearFinished() {
+        sessions.filter { $0.state == .yourTurn }.forEach { dismiss($0.id) }
+    }
+
     // Fallback for sessions that ended without a SessionEnd. Anything still waiting on you stays a day, so it isn't forgotten.
     func pruneStale() {
         sessions.removeAll { s in
             let waiting = s.state == .needsYou || (s.state == .yourTurn && !s.seen) || s.snoozedUntil != nil
-            return s.lastSeen < Date().addingTimeInterval(waiting ? -24 * 3600 : -30 * 60)
+            let ttl: TimeInterval = waiting ? 24 * 3600 : s.seen ? 10 * 60 : 30 * 60
+            return s.lastSeen < Date().addingTimeInterval(-ttl)
+        }
+        dropClosedTerminals()
+    }
+
+    // A closed tab can skip SessionEnd; once nothing runs on its tty, the agent is gone.
+    private func dropClosedTerminals() {
+        let ttys = Set(sessions.compactMap(\.tty))
+        guard !ttys.isEmpty else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let (status, out) = ClaudeCLI.run("/bin/ps", ["-A", "-o", "tty="])
+            guard status == 0 else { return }
+            let live = Set(out.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) })
+            let closed = ttys.subtracting(live)
+            guard !closed.isEmpty else { return }
+            DispatchQueue.main.async {
+                self?.sessions.removeAll { $0.tty.map(closed.contains) ?? false }
+            }
         }
     }
 

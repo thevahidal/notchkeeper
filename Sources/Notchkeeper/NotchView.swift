@@ -139,6 +139,9 @@ struct NotchView: View {
                 }
             }
             Spacer()
+            if store.sessions.contains(where: { $0.state == .yourTurn }) {
+                HeaderToggle(on: false, symbol: "checkmark.circle", help: "Clear finished agents") { store.clearFinished() }
+            }
             HeaderToggle(on: false, symbol: "plus", help: "Start a background agent") { store.openNewAgent() }
             HeaderToggle(on: store.sounds, symbol: store.sounds ? "speaker.wave.2.fill" : "speaker.slash.fill",
                          help: store.sounds ? "Sounds on" : "Sounds off") { store.sounds.toggle() }
@@ -201,6 +204,18 @@ struct NotchView: View {
             // On hover only, so rows stay calm.
             if session.state != .working && hovered {
                 SnoozeMenu(store: store, session: session, hovered: hovered).padding(.top, 4)
+            }
+            if hovered {
+                Button { store.dismiss(session.id) } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 26, height: 26)
+                        .background(.white.opacity(0.16), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Close: hide until it does something new")
+                .padding(.top, 4)
             }
             if Jump.canReply(session) {
                 Button { store.replyTo = session } label: {
