@@ -189,6 +189,7 @@ struct NotchView: View {
                         Tag(text: "zz " + until.formatted(date: .omitted, time: .shortened), color: .white.opacity(0.5))
                     }
                     if let n = store.queued[session.id]?.count { Tag(text: "\(n) queued", color: Palette.working[1]) }
+                    if store.showsUnsaved(session), let work = session.unsaved { Tag(text: work, color: Palette.needsYou[0]) }
                     Spacer(minLength: 8)
                     if let mode = session.mode { ModeBadge(mode: mode) }
                     Elapsed(session: session)

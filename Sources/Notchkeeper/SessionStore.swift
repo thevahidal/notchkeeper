@@ -386,6 +386,7 @@ final class SessionStore: ObservableObject {
         let isNew = !sessions.contains { $0.id == id }
         if isNew || name == "Stop" { loadTitle(id, transcript: event["transcript_path"] as? String, turnEnded: name == "Stop") }
         if isNew || name == "Stop", let cwd = event["cwd"] as? String { loadBranch(id, cwd: cwd) }
+        if name == "Stop", let cwd = event["cwd"] as? String { loadUnsaved(id, cwd: cwd) }
         if !sessions.contains(where: { $0.id == id }) {
             var session = Session(id: id, repo: repo, state: state, detail: "", lastSeen: Date())
             session.background = launched.contains(String(id.prefix(8)))
@@ -575,9 +576,9 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    // You may commit or push from elsewhere; ended agents go once their folder is clean.
+    // You may commit or push from elsewhere; chips clear and ended agents go once their folder is clean.
     private func recheckUnsaved() {
-        let flagged = sessions.filter { $0.ended }.map { ($0.id, $0.cwd) }
+        let flagged = sessions.filter { $0.ended || $0.unsaved != nil }.map { ($0.id, $0.cwd) }
         guard !flagged.isEmpty else { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let found = flagged.map { ($0.0, Self.unsavedWork($0.1)) }
@@ -585,7 +586,7 @@ final class SessionStore: ObservableObject {
                 guard let self else { return }
                 for (id, work) in found {
                     guard let i = self.sessions.firstIndex(where: { $0.id == id }) else { continue }
-                    if work == nil { self.sessions.remove(at: i) } else { self.sessions[i].unsaved = work }
+                    if work == nil && self.sessions[i].ended { self.sessions.remove(at: i) } else { self.sessions[i].unsaved = work }
                 }
             }
         }
@@ -676,6 +677,22 @@ final class SessionStore: ObservableObject {
                 self?.sessions[i].branch = branch
             }
         }
+    }
+
+    private func loadUnsaved(_ id: String, cwd: String) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let work = Self.unsavedWork(cwd)
+            DispatchQueue.main.async {
+                guard let i = self?.sessions.firstIndex(where: { $0.id == id }) else { return }
+                self?.sessions[i].unsaved = work
+            }
+        }
+    }
+
+    // One chip per folder: on the agent there that was active last.
+    func showsUnsaved(_ session: Session) -> Bool {
+        guard session.unsaved != nil, session.state != .working else { return false }
+        return !sessions.contains { $0.id != session.id && $0.cwd == session.cwd && $0.unsaved != nil && $0.lastSeen > session.lastSeen }
     }
 
     // Reads .git/HEAD directly instead of running git; worktrees have a .git file pointing at their real dir.
