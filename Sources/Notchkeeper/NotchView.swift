@@ -183,7 +183,6 @@ struct NotchView: View {
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(Palette.working[1])
                     }
-                    if let agent = session.agent { Tag(text: agent, color: .white.opacity(0.6)) }
                     if session.background || session.tmuxSession != nil { Tag(text: "bg", color: Palette.plan) }
                     if let until = session.snoozedUntil {
                         Tag(text: "zz " + until.formatted(date: .omitted, time: .shortened), color: .white.opacity(0.5))
