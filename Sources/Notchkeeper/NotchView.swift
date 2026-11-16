@@ -393,7 +393,7 @@ struct StateBadge: View {
                 .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1))
                 .overlay(alignment: .bottomTrailing) {
-                    if !session.isItem && session.tty != nil { EnvIcon(session: session).offset(x: 4, y: 4) }
+                    if !session.isItem && (session.tty != nil || session.tmuxSession != nil) { EnvIcon(session: session).offset(x: 4, y: 4) }
                 }
             Orb(state: session.state, seen: session.seen, size: 8)
                 .padding(2)
@@ -760,7 +760,11 @@ struct AppIcon: View {
             if session.isItem {
                 Image(systemName: "bolt.fill").resizable().scaledToFit()
             } else if let agent = session.agent.flatMap(Agent.init) {
-                Text(agent.title.prefix(1)).font(.system(size: 14, weight: .bold, design: .rounded))
+                if agent == .codex, let codex = Self.icon("com.openai.codex") {
+                    codex.resizable().scaledToFit()
+                } else {
+                    Text(agent.title.prefix(1)).font(.system(size: 14, weight: .bold, design: .rounded))
+                }
             } else {
                 (Self.icon("com.anthropic.claudefordesktop") ?? Image(systemName: "sparkle")).resizable().scaledToFit()
             }
@@ -984,7 +988,7 @@ struct NewAgentCard: View {
                     .background(Palette.plan, in: RoundedRectangle(cornerRadius: 7))
                 VStack(alignment: .leading, spacing: 1) {
                     Text("New background agent").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
-                    Text("Runs on its own, no terminal needed")
+                    Text(draft.agent == .claude ? "Runs on its own, no terminal needed" : "Runs in a background terminal session")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.5))
                 }
