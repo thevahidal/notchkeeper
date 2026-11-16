@@ -263,7 +263,17 @@ final class SessionStore: ObservableObject {
             }
         } else {
             TmuxAgents.launch(draft.agent, prompt: prompt, in: draft.folder, worktree: worktree) { [weak self] result in
-                finished(result.map { self?.launchedPanes[$0.pane] = $0.session; return () })
+                finished(result.map { launched in
+                    guard let self else { return () }
+                    self.launchedPanes[launched.pane] = launched.session
+                    // A fast CLI can send its first hook before tmux returns the pane id.
+                    // Reconcile that event here as well as when later events arrive.
+                    if let i = self.sessions.firstIndex(where: { session in
+                        if case let .tmux(_, pane)? = session.pane { return pane == launched.pane }
+                        return false
+                    }) { self.sessions[i].tmuxSession = launched.session }
+                    return ()
+                })
             }
         }
     }
