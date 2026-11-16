@@ -88,7 +88,7 @@ struct NotchView: View {
                     HStack(spacing: 4) {
                         Image(systemName: headline.state == .needsYou ? "hand.raised.fill" : "checkmark")
                             .font(.system(size: 9, weight: .bold))
-                        Text(headline.repo)
+                        Text(headline.label ?? headline.repo)
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .lineLimit(1)
                             .truncationMode(.tail)

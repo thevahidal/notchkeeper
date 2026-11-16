@@ -10,9 +10,12 @@ function run() {
   const firstLine = prompt.split('\n')[0].slice(0, 80)
   // Only while the title is still the default (repo name or the prompt itself), so it renames once.
   if (!prompt || (session.title !== session.repo && session.title !== firstLine)) return
-  const title = ask(settings, 'Write a title of 3 to 6 words for a coding task, from the developer\'s request. ' +
-    'Plain words, no quotes, no trailing period. Reply with JSON: {"title": "..."}', prompt)
-  if (typeof title === 'string' && title.trim()) return JSON.stringify({ title: title.trim() })
+  const answer = ask(settings, 'Name a coding task from the developer\'s request. ' +
+    'title: 3 to 6 words. label: 1 or 2 words, at most 12 characters. Plain words, no quotes, no trailing period. ' +
+    'Reply with JSON: {"title": "...", "label": "..."}', prompt) || {}
+  const clean = text => typeof text === 'string' && text.trim() ? text.trim() : undefined
+  const reply = { title: clean(answer.title), label: clean(answer.label) }
+  if (reply.title || reply.label) return JSON.stringify(reply)
 }
 
 // Only a server on this Mac; anything else is ignored.
@@ -24,7 +27,7 @@ function ask(settings, system, user) {
                                 messages: [{ role: 'system', content: system }, { role: 'user', content: user }] })
   const out = exec('/usr/bin/curl', ['-sS', '-m', '7', '-H', 'Content-Type: application/json', '--data-binary', '@-',
                                      server + '/v1/chat/completions'], body)
-  try { return JSON.parse(JSON.parse(out).choices[0].message.content).title } catch (e) { return null }
+  try { return JSON.parse(JSON.parse(out).choices[0].message.content) } catch (e) { return null }
 }
 
 function readStdin() {

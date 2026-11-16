@@ -15,6 +15,8 @@ struct Session: Identifiable, Codable {
     // Claude's own title (from its sidebar) wins over a plugin's, which wins over the first prompt.
     var ownTitle: String?
     var pluginTitle: String?
+    // A plugin's one- or two-word name for the notch's side, where a title won't fit.
+    var label: String?
     var cwd = ""
     // Claude's transcript, checked to be under ~/.claude/projects.
     var transcript: String?
@@ -528,6 +530,7 @@ final class SessionStore: ObservableObject {
             sessions[i].pluginTitle = String(title.prefix(80))
             if sessions[i].ownTitle == nil { sessions[i].title = String(title.prefix(80)) }
         }
+        if let label = firstLine(reply["label"] as? String) { sessions[i].label = String(label.prefix(20)) }
         if let detail = firstLine(reply["detail"] as? String) { sessions[i].detail = String(detail.prefix(200)) }
     }
 

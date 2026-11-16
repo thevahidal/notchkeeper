@@ -128,7 +128,7 @@ Otherwise:
   - **Journal**: a daily Markdown log of what your agents did, in `~/.notchkeeper/journal/`.
   - **Phone (ntfy)**: pushes "needs you" and "done" to your phone and watch through [ntfy](https://ntfy.sh). Turn it on and set a hard-to-guess topic under it in Settings. Only the agent's title leaves your Mac.
   - **Backlog**: a todo list in `~/.notchkeeper/backlog.md`, one section per repo. It picks up follow-ups agents leave (`TODO:`, `Next:`, `Follow-up:`) and prompts that start with "remind me to …" or "todo:". `notchkeeper todo` lists it; `todo add call Sam at 3pm`, `todo done 2` and `todo edit` do the rest, and a due reminder shows in the notch. Point it at a local model server (Ollama, LM Studio) in Settings and it also finds follow-ups in plain sentences and reminders anywhere in a prompt. Only servers on this Mac are accepted; without one it works as before.
-  - **Titles**: names an agent from your first prompt ("Fix field_choice tests after migration") with a local model server on this Mac. Titles you set in Claude win.
+  - **Titles**: names an agent from your first prompt ("Fix field_choice tests after migration", and "Test Fixes" beside the notch) with a local model server on this Mac. Titles you set in Claude win.
 
   A plugin can declare its own settings; they show up under it in Settings once it's on, and it works on its defaults if you never touch them.
 

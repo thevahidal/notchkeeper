@@ -76,10 +76,10 @@ Turn it on in the menu bar under Plugins. When one of its events happens, Notchk
 A plugin may answer by printing one JSON object (up to 4 KB) on stdout; anything else is ignored:
 
 ```json
-{ "title": "Fix login redirect", "detail": "Tests pass; waiting on your review" }
+{ "title": "Fix login redirect", "label": "Login fix", "detail": "Tests pass; waiting on your review" }
 ```
 
-Both keys are optional and apply only to the session the event was about. `title` (first line, 80 characters) renames it, unless you named it yourself in Claude. `detail` (first line, 200 characters) replaces its status line until the agent's next event.
+Both keys are optional and apply only to the session the event was about. `title` (first line, 80 characters) renames it, unless you named it yourself in Claude. `label` (first line, 20 characters) is a one- or two-word name shown beside the notch instead of the folder name. `detail` (first line, 200 characters) replaces its status line until the agent's next event.
 
 A plugin can declare settings. Each needs a `key` and a `type` (`text`, `toggle` or `choice` with `options`); `title`, `default` and, for `text`, a grey `placeholder` are optional, and a plugin should work on its defaults alone:
 
