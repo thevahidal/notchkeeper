@@ -805,8 +805,10 @@ final class SessionStore: ObservableObject {
             let (title, firstPrompt, question, model) = Self.readTranscript(path)
             DispatchQueue.main.async {
                 guard let self, let i = self.sessions.firstIndex(where: { $0.id == id }) else { return }
-                self.sessions[i].ownTitle = title
-                if let title = title ?? self.sessions[i].pluginTitle ?? firstPrompt { self.sessions[i].title = title }
+                // Background jobs get their worktree's folder name as a title; that one isn't yours, so a plugin may replace it.
+                let folder = (self.sessions[i].cwd as NSString).lastPathComponent
+                self.sessions[i].ownTitle = title == folder ? nil : title
+                if let title = self.sessions[i].ownTitle ?? self.sessions[i].pluginTitle ?? firstPrompt { self.sessions[i].title = title }
                 if let model { self.sessions[i].model = model }
                 // A question box at the end of the turn means it's waiting on your answer.
                 if self.sessions[i].state == .yourTurn, let question {
