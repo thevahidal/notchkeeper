@@ -25,8 +25,12 @@ enum Jump {
             let ghostty = "com.mitchellh.ghostty"
             return NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghostty) != nil ? ghostty : "com.apple.Terminal"
         }
-        if session.tty == nil { return "com.anthropic.claudefordesktop" }
-        return session.term.flatMap { terminals[$0] } ?? session.app
+        if let terminal = session.term.flatMap({ terminals[$0] }) { return terminal }
+        if let app = session.app { return app }
+        // A missing TTY means Claude Desktop only for Claude Code. CLI hooks can
+        // occasionally lose their TTY, but still retain the terminal app above.
+        if session.tty == nil, session.agent == nil { return "com.anthropic.claudefordesktop" }
+        return nil
     }
 
     static func to(_ session: Session) {
