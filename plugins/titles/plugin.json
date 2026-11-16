@@ -1,0 +1,10 @@
+{
+  "name": "Titles",
+  "description": "Gives an agent a short title from your first prompt, using a local model server.",
+  "run": "run.js",
+  "on": ["prompt"],
+  "settings": [
+    { "key": "server", "title": "Local model server (e.g. http://127.0.0.1:11434)", "type": "text" },
+    { "key": "model", "title": "Model", "type": "text", "default": "qwen2.5" }
+  ]
+}
