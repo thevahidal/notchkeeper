@@ -16,7 +16,7 @@ struct Session: Identifiable, Codable {
     var ownTitle: String?
     var pluginTitle: String?
     var cwd = ""
-    // Claude's transcript, checked to be under ~/.claude/projects.
+    // Claude's transcript, checked to be under ~/.claude*/projects (CLAUDE_CONFIG_DIR profiles too).
     var transcript: String?
     var branch: String?
     // Started with `claude --bg`: no terminal tab of its own, you attach to it.
@@ -915,8 +915,9 @@ final class SessionStore: ObservableObject {
 
     // Events could name any file; only Claude's own transcripts are read.
     static func claudeTranscript(_ path: String?) -> String? {
-        let projects = NSHomeDirectory() + "/.claude/projects/"
-        guard let path = (path as NSString?)?.standardizingPath, path.hasPrefix(projects), path.hasSuffix(".jsonl") else { return nil }
+        guard let path = (path as NSString?)?.standardizingPath, path.hasPrefix(NSHomeDirectory() + "/"), path.hasSuffix(".jsonl") else { return nil }
+        let parts = path.dropFirst(NSHomeDirectory().count + 1).split(separator: "/")
+        guard parts.count > 2, parts[0].hasPrefix(".claude"), parts[1] == "projects" else { return nil }
         return path
     }
 
