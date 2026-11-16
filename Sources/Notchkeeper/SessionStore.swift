@@ -497,6 +497,9 @@ final class SessionStore: ObservableObject {
             sessions[i].pane = Pane(event)
             if case let .tmux(_, pane)? = sessions[i].pane, let name = launchedPanes[pane] { sessions[i].tmuxSession = name }
         }
+        if agent != nil, agent != .claude, sessions[i].tmuxSession == nil, sessions[i].pane == nil {
+            sessions[i].tmuxSession = TmuxAgents.session(inFolder: sessions[i].cwd)
+        }
         if let mode = event["permission_mode"] as? String { sessions[i].mode = mode }
         // Claude's titles and model come from its transcript; the others tell us in the event.
         if let agent {

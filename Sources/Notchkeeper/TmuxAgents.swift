@@ -64,6 +64,17 @@ enum TmuxAgents {
         }
     }
 
+    // Codex runs hooks from its own daemon, so events carry no pane; find the one nk- session started in this folder.
+    static func session(inFolder folder: String) -> String? {
+        guard let tmux else { return nil }
+        let (_, out) = ClaudeCLI.run(tmux, ["list-panes", "-a", "-F", "#{session_name}\t#{pane_current_path}"])
+        let names = out.split(separator: "\n").compactMap { line -> String? in
+            let parts = line.split(separator: "\t", maxSplits: 1).map(String.init)
+            return parts.count == 2 && parts[0].hasPrefix("nk-") && parts[1] == folder ? parts[0] : nil
+        }
+        return names.count == 1 ? names[0] : nil
+    }
+
     // Focuses the terminal already attached to it, or attaches in a new one.
     static func attach(_ session: String) {
         guard let tmux, session.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) else { return }
