@@ -94,7 +94,10 @@ final class NotchPanel: NSPanel {
         backgroundColor = .clear
         hasShadow = false
         ignoresMouseEvents = true
-        contentView = FirstClickHostingView(rootView: NotchView(store: store, state: state))
+        let host = FirstClickHostingView(rootView: NotchView(store: store, state: state))
+        // place() sizes the window; letting SwiftUI measure itself re-lays out the whole tree every animation frame.
+        host.sizingOptions = []
+        contentView = host
         place()
 
         // Polling the pointer needs no permissions, unlike global event monitors.
