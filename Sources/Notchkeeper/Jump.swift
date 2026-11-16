@@ -15,7 +15,10 @@ enum Jump {
     private static let scriptable: Set = ["ghostty", "iTerm.app", "Apple_Terminal"]
 
     static func canReply(_ session: Session) -> Bool {
-        session.tty != nil && !session.background && !session.ended && (session.pane != nil || scriptable.contains(session.term ?? ""))
+        guard !session.ended else { return false }
+        if session.pane != nil { return true }
+        if session.background { return session.agent == nil && ClaudeCLI.path != nil }
+        return session.tty != nil && scriptable.contains(session.term ?? "")
     }
 
     // The app the session runs in, if known: the desktop app, its terminal, or the app its environment names.
@@ -66,9 +69,11 @@ enum Jump {
     // Types the text into the session's pane, then presses Enter.
     // Returns false without typing when the agent isn't what's running there.
     static func reply(_ session: Session, _ text: String) -> Bool {
-        guard let tty = session.tty, canReply(session), agentInForeground(tty, session.agent) else { return false }
         let line = text.components(separatedBy: .newlines).joined(separator: " ")
+        guard canReply(session) else { return false }
         if let pane = session.pane { return type(line, into: pane) }
+        if session.background { return ClaudeCLI.reply(session.id, line, in: session.cwd) }
+        guard let tty = session.tty, agentInForeground(tty, session.agent) else { return false }
         let quoted = "\"" + line.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
         switch session.term {
         case "ghostty": script(ghostty(tty, "input text \(quoted) to t\nsend key \"enter\" to t"))

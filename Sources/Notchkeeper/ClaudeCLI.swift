@@ -58,6 +58,18 @@ enum ClaudeCLI {
         openTerminal([path, "attach", id])
     }
 
+    // A native --bg session has no TTY to type into. Resume its conversation
+    // in print mode with the follow-up as the next user turn.
+    static func reply(_ sessionId: String, _ text: String, in folder: String) -> Bool {
+        guard let path, !sessionId.isEmpty,
+              sessionId.allSatisfy({ $0.isHexDigit || $0 == "-" }) else { return false }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let (status, out) = run(path, ["--resume", sessionId, "-p", text], in: folder)
+            if status != 0 { NSLog("Notchkeeper background reply failed: %@", out) }
+        }
+        return true
+    }
+
     // Runs the command in Ghostty if installed, else Terminal. Callers pass only paths and checked ids, never quotes.
     // Ghostty gets a new tab in its front window when it has one; Terminal always gets a new window.
     static func openTerminal(_ args: [String]) {
