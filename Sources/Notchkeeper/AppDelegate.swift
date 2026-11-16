@@ -29,7 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                   let key = event.charactersIgnoringModifiers, let action = editActions[key] else { return event }
             if key == "v" && self?.store.pasteImage() == true { return nil }
-            return NSApp.sendAction(action, to: nil, from: nil) ? nil : event
+            // Accessory panels don't have an Edit menu, and the responder chain can
+            // miss SwiftUI's field editor. Target the active editor directly.
+            let responder = NSApp.keyWindow?.firstResponder
+            return (NSApp.sendAction(action, to: responder, from: nil) ||
+                    NSApp.sendAction(action, to: nil, from: nil)) ? nil : event
         }
         // Written a second after the last change, not on every event.
         saver = store.$sessions.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] _ in self?.store.save() }
