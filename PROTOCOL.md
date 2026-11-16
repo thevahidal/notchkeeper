@@ -81,7 +81,7 @@ A plugin may answer by printing one JSON object (up to 4 KB) on stdout; anything
 
 Both keys are optional and apply only to the session the event was about. `title` (first line, 80 characters) renames it, unless you named it yourself in Claude. `detail` (first line, 200 characters) replaces its status line until the agent's next event.
 
-A plugin can declare settings. Each needs a `key` and a `type` (`text`, `toggle` or `choice` with `options`); `title` and `default` are optional, and a plugin should work on its defaults alone:
+A plugin can declare settings. Each needs a `key` and a `type` (`text`, `toggle` or `choice` with `options`); `title`, `default` and, for `text`, a grey `placeholder` are optional, and a plugin should work on its defaults alone:
 
 ```json
 "settings": [

@@ -5,7 +5,7 @@
   "on": ["reply", "prompt", "tick"],
   "settings": [
     { "key": "collect", "title": "Collect follow-ups from agents", "type": "toggle", "default": true },
-    { "key": "server", "title": "Local model server (e.g. http://127.0.0.1:11434)", "type": "text" },
+    { "key": "server", "title": "Local model server", "type": "text", "placeholder": "http://127.0.0.1:11434" },
     { "key": "model", "title": "Model", "type": "text", "default": "qwen2.5" }
   ]
 }

@@ -17,6 +17,7 @@ struct Plugin: Identifiable {
 struct PluginSetting {
     let key: String
     let title: String
+    let placeholder: String
     let type: String
     let options: [String]
     let defaultValue: Any
@@ -34,6 +35,7 @@ struct PluginSetting {
         guard let value = Self.clean(entry["default"], type, options) ?? Self.clean(fallback, type, options) else { return nil }
         (self.key, self.type, self.options, defaultValue) = (key, type, options, value)
         title = entry["title"] as? String ?? key
+        placeholder = entry["placeholder"] as? String ?? ""
     }
 
     func clean(_ value: Any?) -> Any? { Self.clean(value, type, options) }
