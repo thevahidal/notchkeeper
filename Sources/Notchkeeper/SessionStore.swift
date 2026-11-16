@@ -230,7 +230,14 @@ final class SessionStore: ObservableObject {
 
     func openNewAgent(in folder: String? = nil) {
         let folder = folder ?? recentFolders.first ?? NSHomeDirectory()
-        newAgent = NewAgent(folder: folder, worktree: Self.gitBranch(folder) != nil, images: newAgent?.images ?? [])
+        if var draft = newAgent {
+            draft.folder = folder
+            draft.worktree = Self.gitBranch(folder) != nil
+            draft.error = nil
+            newAgent = draft
+        } else {
+            newAgent = NewAgent(folder: folder, worktree: Self.gitBranch(folder) != nil)
+        }
         TmuxAgents.choices { [weak self] choices in
             self?.agentChoices = choices
             if let agent = self?.newAgent?.agent, !choices.contains(agent) { self?.newAgent?.agent = .claude }
