@@ -123,11 +123,12 @@ Otherwise:
 ## Extend it
 
 - **Anything in the notch.** `~/.notchkeeper/bin/notchkeeper run -- npm run build` shows the build while it runs and pings when it's done or fails. `notchkeeper notify --id … --title … --state done --url …` posts anything else: deploys, CI, long scripts.
-- **Plugins.** Small scripts that run when an agent needs you, finishes or asks for approval. Four come with the app, all off until you turn them on in Settings or the menu bar:
+- **Plugins.** Small scripts that run when an agent needs you, finishes or asks for approval. Five come with the app, all off until you turn them on in Settings or the menu bar:
   - **Say it**: speaks "api needs you", in the voice you pick.
   - **Journal**: a daily Markdown log of what your agents did, in `~/.notchkeeper/journal/`.
   - **Phone (ntfy)**: pushes "needs you" and "done" to your phone and watch through [ntfy](https://ntfy.sh). Turn it on and set a hard-to-guess topic under it in Settings. Only the agent's title leaves your Mac.
   - **Backlog**: a todo list in `~/.notchkeeper/backlog.md`, one section per repo. It picks up follow-ups agents leave (`TODO:`, `Next:`, `Follow-up:`) and prompts that start with "remind me to …" or "todo:". `notchkeeper todo` lists it; `todo add call Sam at 3pm`, `todo done 2` and `todo edit` do the rest, and a due reminder shows in the notch. Point it at a local model server (Ollama, LM Studio) in Settings and it also finds follow-ups in plain sentences and reminders anywhere in a prompt. Only servers on this Mac are accepted; without one it works as before.
+  - **Titles**: names an agent from your first prompt ("Fix field_choice tests after migration", and "Test Fixes" beside the notch) with a local model server on this Mac. Titles you set in Claude win.
 
   A plugin can declare its own settings; they show up under it in Settings once it's on, and it works on its defaults if you never touch them.
 

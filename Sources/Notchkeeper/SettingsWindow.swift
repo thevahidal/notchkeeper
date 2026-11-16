@@ -197,7 +197,7 @@ struct SettingsView: View {
                 ForEach(setting.options, id: \.self) { Text($0) }
             }
         default:
-            TextField(setting.title, text: model.pluginSetting(plugin, setting, ""))
+            TextField(setting.title, text: model.pluginSetting(plugin, setting, ""), prompt: Text(setting.placeholder.isEmpty ? "Not set" : setting.placeholder))
         }
     }
 

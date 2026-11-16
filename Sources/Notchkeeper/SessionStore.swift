@@ -15,6 +15,8 @@ struct Session: Identifiable, Codable {
     // Claude's own title (from its sidebar) wins over a plugin's, which wins over the first prompt.
     var ownTitle: String?
     var pluginTitle: String?
+    // A plugin's one- or two-word name for the notch's side, where a title won't fit.
+    var label: String?
     var cwd = ""
     // Claude's transcript, checked to be under ~/.claude*/projects (CLAUDE_CONFIG_DIR profiles too).
     var transcript: String?
@@ -528,6 +530,7 @@ final class SessionStore: ObservableObject {
             sessions[i].pluginTitle = String(title.prefix(80))
             if sessions[i].ownTitle == nil { sessions[i].title = String(title.prefix(80)) }
         }
+        if let label = firstLine(reply["label"] as? String) { sessions[i].label = String(label.prefix(20)) }
         if let detail = firstLine(reply["detail"] as? String) { sessions[i].detail = String(detail.prefix(200)) }
     }
 
@@ -805,8 +808,10 @@ final class SessionStore: ObservableObject {
             let (title, firstPrompt, question, model) = Self.readTranscript(path)
             DispatchQueue.main.async {
                 guard let self, let i = self.sessions.firstIndex(where: { $0.id == id }) else { return }
-                self.sessions[i].ownTitle = title
-                if let title = title ?? self.sessions[i].pluginTitle ?? firstPrompt { self.sessions[i].title = title }
+                // Background jobs get their worktree's folder name as a title; that one isn't yours, so a plugin may replace it.
+                let folder = (self.sessions[i].cwd as NSString).lastPathComponent
+                self.sessions[i].ownTitle = title == folder ? nil : title
+                if let title = self.sessions[i].ownTitle ?? self.sessions[i].pluginTitle ?? firstPrompt { self.sessions[i].title = title }
                 if let model { self.sessions[i].model = model }
                 // A question box at the end of the turn means it's waiting on your answer.
                 if self.sessions[i].state == .yourTurn, let question {
